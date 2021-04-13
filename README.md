@@ -1,5 +1,5 @@
 # OptiLab
-Optimization models for operating modes of thermal power plants 
+Optimization models for operating modes of technological process
 Пакет предназначен для параметризации (представления нелинейных процессов в виде набора линейных ограничений) элементов оптимизационной модели.
 
 Компоненты модели могут быть представлены:
