@@ -16,7 +16,7 @@ setup(name='optilab',
  
       description='Thermal Power Plant Optimisation',
  
-      packages=find_packages(exclude=['tests']),
+      packages=find_packages(exclude=['Examples']),
  
       long_description=open('README.md').read(),
  
