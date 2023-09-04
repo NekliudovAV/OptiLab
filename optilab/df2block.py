@@ -193,15 +193,37 @@ def CH_Block(t,df,**varargs):
     b.c_F = Constraint(t,rule=c_D0_) 
 
     # 3. Формируется ОДЗ
-    CH_constraints(b, df)
+    if 'chvars' in varargs:
+        CH_constraints(b, df[varargs['chvars']+[df.columns[-1]]])
+    else:
+        CH_constraints(b, df)
     
     # 4. Задаются ограничения типа равенство для внеших ограничений
     if  'pinned' in varargs:
         extD=varargs['pinned']
         ext_vars(b,ext=extD)
+        
+        
+    # 5. Обнуление переменных при State = 0
+    def cS0_up(b,t,v):
+        if v in df.keys():
+            Max=df[v].max()
+        else:
+            Max=10000
+        return b.Vars[t,v] <=Max*b.State
+    
+    def cS0_bm(b,t,v):
+        if v in df.keys():
+            Min=df[v].min()
+        else:
+            Min=-10000
+        return b.Vars[t,v] >= Min*b.State
+    
+    b.cS0_up = Constraint(b.t, Vars, rule=cS0_up)
+    b.cS0_bm = Constraint(b.t, Vars, rule=cS0_bm)
+        
+        
     return b
-
-
 
 def PWL_Block(t,df,**varargs):
     Vars = list(df.columns)
@@ -210,11 +232,6 @@ def PWL_Block(t,df,**varargs):
         Vars.extend(varargs['addvars'])
     
     # Объявляются переменные
-    if 'stepState' in varargs:
-        SS=varargs['stepState']
-    else:
-        SS=0
-    
     b = Block(concrete=True)
     b.State = Var(within=Binary) # Используется в add_blocks
     
@@ -256,8 +273,7 @@ def PWL_Block(t,df,**varargs):
         ext_vars(b,ext=extD)
     # Добавляем всё в блок
     def add_PW(b,i):
-        b.PW=PW[i].clone()
-#            return 
+            return PW[i].clone()
     b.PW=Block(range(0,len(PW)),rule=add_PW)
     #
     return b
@@ -297,9 +313,7 @@ def N_Stages(t,*Blocks,**varargs):
     # Сохраняем блоки в Stages
     def add_BlockStages(b,i):
         #print(i)
-        b.SB=Blocks[i].clone()
-        return b
-        #return Blocks[i].clone()
+        return Blocks[i].clone()
     b.Stages=Block(range(0,len(Blocks)),rule=add_BlockStages)
 
    
@@ -308,7 +322,7 @@ def N_Stages(t,*Blocks,**varargs):
         # Доработать строчку
         expr = 0
         for i in range(len(Blocks)):
-            expr += b.Stages[i].SB.State
+            expr += b.Stages[i].State
         return expr==b.State
     b.c_stage=Constraint(rule=c_Stage)
 
@@ -317,8 +331,8 @@ def N_Stages(t,*Blocks,**varargs):
         expr = 0 
         k=0
         for i in range(len(Blocks)):
-            if VarName in b.Stages[i].SB.VarNames:
-                expr += b.Stages[i].SB.Vars[t,VarName]
+            if VarName in b.Stages[i].VarNames:
+                expr += b.Stages[i].Vars[t,VarName]
                 k=k+1;
         if k>0:
             return expr==b.Vars[t,VarName]
@@ -333,10 +347,10 @@ def N_Stages(t,*Blocks,**varargs):
         
     b.c_eq_stage=ConstraintList()
     for i in range(len(b.Stages)):
-        b.c_eq_stage.add(b.Stages[i].SB.State==b.Regime[i])
+        b.c_eq_stage.add(b.Stages[i].State==b.Regime[i])
     if 'regime' in varargs:
         r=varargs['regime']
-        b.c_eq_stage.add(b.Stages[r].SB.State==b.State)
+        b.c_eq_stage.add(b.Stages[r].State==b.State)
     if 'state' in varargs:
         s=varargs['state']
         b.c_eq_stage.add(b.State==s)
@@ -380,9 +394,7 @@ def add_blocks(b,Blocks,Vars,t):
             Vars.extend(VN)
     # Сохраняем блоки в Block
     def add_BlockStages(b,i):
-        b.SB=Blocks[i].clone()
-        return b
-    #return Blocks[i].clone()
+            return Blocks[i].clone()
     b.bl=Block(range(0,len(Blocks)),rule=add_BlockStages)
         # Добавляем связь между переменными
     b.c_e=ConstraintList()
@@ -398,9 +410,9 @@ def add_blocks(b,Blocks,Vars,t):
             VN=bl.VarNames
             for name in VN:
                 for t_ in t:
-                    print(t,name)
-                    b.c_e.add(b.Vars[t_,name]==b.bl[k].SB.Vars[t_,name])
-            b.c_e.add(b.State==b.bl[k].SB.State)    
+                    #print(name)
+                    b.c_e.add(b.Vars[t_,name]==b.bl[k].Vars[t_,name])
+            b.c_e.add(b.State==b.bl[k].State)    
             k=k+1
     return b
                 
@@ -692,24 +704,102 @@ def ch_reduce(df,scaler,tol):
 
     return pd.DataFrame(scaler.inverse_transform(df_small), columns=df.columns)
 
-def extend_ch(ch_df, params = {'N': 2, 'D13':2, 'Qt': 2, 'Pt':0.1}):
+"""
+def extend_ch(ch_df, params = {'N': {'down':0, 'up': 0}}):
     
     lm = LinearRegression()
     lm.fit(ch_df.iloc[:,:-1],ch_df.iloc[:,-1])
+    
     ext_df = ch_df.iloc[:,:-1].copy()
     plus_df = ch_df.iloc[:,:-1].copy()
     mins_df = ch_df.iloc[:,:-1].copy()
-    for col in ext_df.columns:
-        plus_df[col] = plus_df[col] + params[col]
-        mins_df[col] = mins_df[col] - params[col]
+
+    for col in params:
+        plus_df[col] = plus_df[col] + params[col]['up']
+        mins_df[col] = mins_df[col] - params[col]['down']
 
     ext_df = ext_df.append([plus_df,mins_df])
+    
+    if ch_df.shape[1] > 2:
 
-    ch = ConvexHull(ext_df)
-    ext_df = ext_df.iloc[ch.vertices]
+        ch = ConvexHull(ext_df)
+        ext_df = ext_df.iloc[ch.vertices]
+
+        
     ext_df['D0'] = lm.predict(ext_df)
     
-    return ext_df
+    return ext_df.drop_duplicates().reset_index(drop=True)
+"""
+opt = SolverFactory('scip')
+
+def check_CH(point, df, chvars):
+    
+    ch = ConvexHull(df[chvars])
+    eq = ch.equations.T
+    dist = point@eq[:-1] + eq[-1]
+    over_index = np.where(dist > 0)
+    over_eq = ch.equations[over_index]
+    over_dist = dist[over_index]
+
+    
+    if len(over_dist) > 0:
+        
+        min_positive = np.argmin(over_dist)
+        over_eq = over_eq
+        
+        m = ConcreteModel()
+
+        x0 = {chvars[c]: point[c] for c in range(len(chvars))}
+        m.x = Var(chvars)
+
+        m.c_ch = ConstraintList()
+        planes = ch.equations
+
+        for i in range(planes.shape[0]):
+            pl = planes[i]
+            Expr = 0
+            k = 0
+            for var in chvars:
+                Expr += m.x[var]*pl[k]
+                k+=1
+            Expr = Expr + pl[k] <= 0
+            m.c_ch.add(Expr)
+
+        m.dist = Objective(expr= sum((x0[c]-m.x[c])**2 for c in chvars))
+
+        status = opt.solve(m)
+        lm = LinearRegression().fit(df.iloc[:,:-1], df.iloc[:,-1])
+        coefs = dict(zip(lm.feature_names_in_, lm.coef_))
+        d0_dist = np.sqrt(sum(((x0[c]-m.x[c].value)*coefs[c])**2 for c in chvars))
+        
+        return d0_dist, {c: x0[c] - m.x[c].value for c in chvars}
+    
+    else:
+        
+        return 0, {}
+    
+def extend_ch(ch_df, params = {'N': 0}):
+    
+    lm = LinearRegression()
+    lm.fit(ch_df.iloc[:,:-1],ch_df.iloc[:,-1])
+    
+    ext_df = ch_df.iloc[:,:-1].copy()
+    add_df = ch_df.iloc[:,:-1].copy()
+
+    for col in params:
+        add_df[col] = add_df[col] + params[col]
+
+    ext_df = ext_df.append([add_df])
+    
+    if ch_df.shape[1] > 2:
+
+        ch = ConvexHull(ext_df)
+        ext_df = ext_df.iloc[ch.vertices]
+
+        
+    ext_df[ch_df.columns[-1]] = lm.predict(ext_df)
+    
+    return ext_df.drop_duplicates().reset_index(drop=True)
     
 def add_curve(f,Name,X,F):
     if type(f)!=dict:
