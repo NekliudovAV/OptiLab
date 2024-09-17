@@ -1,4 +1,5 @@
 from pyomo.environ import *
+from pyomo.repn.standard_repn import generate_standard_repn
 from pyomo.core import (Block,
                         Var,
                         Constraint,
@@ -76,6 +77,7 @@ def NN_Block(t, dfI, nn, scaler, **varargs):
     
     # Объявляются переменные
     b = Block(concrete=True)
+    b.Type='NN'
     b.State = Var(within=Binary) # Используется в add_blocks
     
     if 'block' in varargs:
@@ -144,9 +146,42 @@ def NN_Block(t, dfI, nn, scaler, **varargs):
     
     return b                 
        
+def Block_Off_State(t,**varargs):
+    # Block_Zero(m.t,Vars=['B','Tfw','D0'],Free_Vars=['Tfw']) 
+    b = Block(concrete=True)
+    b.State = Var(within=Binary) # Используется в add_blocks
+    b.t=t
+    b.Type='Off_State'
+    b.cl=ConstraintList()
+    
+    Vars=varargs['Vars']
+    
+    if 'Free_Vars' in varargs:
+        Free_Vars=set(varargs['Free_Vars'])
+    else:
+        Free_Vars=set()
+        
+    ZeroVars=set(Vars)-Free_Vars
+    
+    
+    Vars=unique(Vars)
+    b.VarNames = Vars
+    MaxVal=10000
+    MinVal=-10000
+    b.Vars = Var(b.t, Vars,bounds=(MinVal,MaxVal))
+    
+    for t_ in b.t:
+        for v in ZeroVars:
+            b.Vars[t_,v].fix(0)
+            
+        for nv in Vars:#Free_Vars:
+            b.cl.add(b.Vars[t_,nv]<=b.State*10000)
+            b.cl.add(b.Vars[t_,nv]>=-b.State*10000)
+    return b
+    
 
-
-def CH_Block(t,df,**varargs):
+def Block_Zero2(t,df,**varargs):
+    # Допускаются не нулевые переменные *. Для моделирования выключенного блока 
     # CH_Block(t,df,**varargin):
     # ext - внешние ограничения
     # addvars - Список дополнительных переменных
@@ -155,10 +190,27 @@ def CH_Block(t,df,**varargs):
     Vars = list(df.columns)
     ValsX = Values[:,:-1]
 
+    #Если передаются не зануляемые переменные, то из них исключаются переменные, попавшие в ОДЗ
+    if 'non_zero_vars' in varargs:
+        NonZero=set(varargs['non_zero_vars'])
+    else:
+        NonZero=set()
+        
+    if 'chvars' in varargs:
+        ODZ_Vars=set(varargs['chvars'])
+    else:
+        ODZ_Vars=set()
+    ZeroVars=ODZ_Vars.union([df.columns[-1]]) #ОДЗ и значение функции долно быть 0
+    
+    NonZero=NonZero-ZeroVars
+    
+
     # Добавляются вспомогательные переменные
     if 'addvars' in varargs:
         Vars.extend(varargs['addvars'])
 
+    NonZero=NonZero.intersection(Vars)
+    print('Допускаемые не нулевые переменные:', NonZero)
     # Объявляются переменные
     b = Block(concrete=True)
     b.State = Var(within=Binary) # Используется в add_blocks
@@ -177,6 +229,76 @@ def CH_Block(t,df,**varargs):
     ValsF = Values[:,-1]
     nVarDf=np.shape(Values)[1]
     
+
+    b.c_F = ConstraintList()
+    print('Обнуляемые переменные:', ZeroVars)
+    for t in b.t:
+        for var in ZeroVars:
+            b.c_F.add(b.Vars[t,var]==0)
+
+    
+    # 4. Задаются ограничения типа равенство для внеших ограничений
+    if  'pinned' in varargs:
+        extD=varargs['pinned']
+        ext_vars(b,ext=extD)
+        
+        
+    # 5. Обнуление переменных при State = 0
+    b.c_F5 = ConstraintList()
+    for t in b.t:
+        for v in set(Vars)-ZeroVars:
+            if v in df.keys():
+                Max=df[v].max()
+                Min=df[v].min()
+            else:
+                Max=10000
+                Min=-1000
+            print('Ограничения:',v,' ',Min,' ',Max )
+            b.c_F5.add(b.Vars[t,v]<=Max*b.State) 
+            b.c_F5.add(b.Vars[t,v]>=Min*b.State)    
+       
+        
+    return b   
+
+def CH_Block(t,df,**varargs):
+    # CH_Block(t,df,**varargin):
+    # ext - внешние ограничения
+    # addvars - Список дополнительных переменных
+    # 
+    Values = df.values
+    Vars = list(df.columns)
+    VarF = set(df.columns[-1])
+    ValsX = Values[:,:-1]
+
+    if 'no_bounds_Vars' in varargs:
+        no_bounds_Vars=set(varargs['no_bounds_Vars'])
+    else:
+        no_bounds_Vars=set([])
+      
+    # Добавляются вспомогательные переменные
+    if 'addvars' in varargs:
+        Vars.extend(varargs['addvars'])
+
+    # Объявляются переменные
+    b = Block(concrete=True)
+    b.Type='CH'
+    b.State = Var(within=Binary) # Используется в add_blocks
+    
+    if 'block' in varargs:
+        # Определяются связи между переменными текущего блока и переменными внуренних блоков
+        Blocks=varargs['block']
+        add_blocks(b,Blocks,Vars,t)
+    else:
+        Vars=unique(Vars)
+        b.VarNames = Vars
+        b.Vars = Var(t, Vars)
+    b.t=t
+    
+    # Формируется структура компонента 
+    ValsF = Values[:,-1]
+  
+    nVarDf=np.shape(Values)[1]
+    
     # 2. Определяем линейную регрессию поверхности
     lm = LinearRegression()
     lm.fit(ValsX,ValsF)
@@ -193,35 +315,41 @@ def CH_Block(t,df,**varargs):
     b.c_F = Constraint(t,rule=c_D0_) 
 
     # 3. Формируется ОДЗ
-    if 'chvars' in varargs:
-        CH_constraints(b, df[varargs['chvars']+[df.columns[-1]]])
+    if 'ODZflag' in varargs:
+        if varargs['ODZflag'] == False:
+            pass
     else:
-        CH_constraints(b, df)
+        if 'chvars' in varargs:
+            CH_constraints(b, df[varargs['chvars']+[df.columns[-1]]])
+        else:
+            CH_constraints(b, df)
     
     # 4. Задаются ограничения типа равенство для внеших ограничений
     if  'pinned' in varargs:
         extD=varargs['pinned']
         ext_vars(b,ext=extD)
         
-        
     # 5. Обнуление переменных при State = 0
     def cS0_up(b,t,v):
-        if v in df.keys():
+        if v in set(df.keys())-no_bounds_Vars:
             Max=df[v].max()
         else:
             Max=10000
         return b.Vars[t,v] <=Max*b.State
     
     def cS0_bm(b,t,v):
-        if v in df.keys():
+        if v in set(df.keys())-no_bounds_Vars:
             Min=df[v].min()
         else:
             Min=-10000
         return b.Vars[t,v] >= Min*b.State
-    
-    b.cS0_up = Constraint(b.t, Vars, rule=cS0_up)
-    b.cS0_bm = Constraint(b.t, Vars, rule=cS0_bm)
-        
+
+    if 'ODZflag' in varargs:
+        if varargs['ODZflag'] == False:
+            pass
+    else:
+        b.cS0_up = Constraint(b.t, Vars, rule=cS0_up)
+        b.cS0_bm = Constraint(b.t, Vars, rule=cS0_bm)
         
     return b
 
@@ -233,6 +361,7 @@ def PWL_Block(t,df,**varargs):
     
     # Объявляются переменные
     b = Block(concrete=True)
+    b.Type='PWL'
     b.State = Var(within=Binary) # Используется в add_blocks
     
     if 'block' in varargs:
@@ -284,6 +413,7 @@ def N_Stages(t,*Blocks,**varargs):
     # возможные дополнительные переменные:
     #
     b = Block(concrete=True)
+    b.Type='N_Stages'
     b.t = t
     #b.q_delta=ConstraintList()
     
@@ -308,7 +438,6 @@ def N_Stages(t,*Blocks,**varargs):
     # Вводится переменная для управления режимом
     rk=range(k)
     b.Regime =Var(rk,within=Binary)
-   
     
     # Сохраняем блоки в Stages
     def add_BlockStages(b,i):
@@ -322,7 +451,8 @@ def N_Stages(t,*Blocks,**varargs):
         # Доработать строчку
         expr = 0
         for i in range(len(Blocks)):
-            expr += b.Stages[i].State
+            if b.Stages[i].Type!='Off_State':
+              expr += b.Stages[i].State
         return expr==b.State
     b.c_stage=Constraint(rule=c_Stage)
 
@@ -860,3 +990,22 @@ def minimize_df(df,extD,t=0):
         new_df.iloc[:,-1] = f(new_df.iloc[:,:-1])
     df = new_df.drop(extD.keys(), axis=1).drop_duplicates()
     return df#,add2ext
+
+def list_constraint(m):
+    Vars=[]
+    for Var1 in m.component_data_objects(Constraint):
+        Vars.append(Var1.name)
+    return Vars   
+    
+def list_ovjective(m):
+    Vars=[]
+    for Var1 in m.component_data_objects(Objective):
+        Vars.append(Var1.name)
+    return Vars
+    
+def list_vars(m):
+    Vars=[]
+    for Var1 in m.component_data_objects(Var):
+        Vars.append(Var1.name)
+    return Vars    
+
