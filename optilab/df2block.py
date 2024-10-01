@@ -456,6 +456,14 @@ def N_Stages(t,*Blocks,**varargs):
         return expr==b.State
     b.c_stage=Constraint(rule=c_Stage)
 
+    def c_Stage0(b):
+        # Доработать строчку
+        expr = 0
+        for i in range(len(Blocks)):
+            expr += b.Stages[i].State
+        return expr<=1
+    b.c_stage0=Constraint(rule=c_Stage0)  
+
     # Работаем с блоками
     def add_Equations_Var(b,t,VarName):
         expr = 0 
