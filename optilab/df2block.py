@@ -76,7 +76,11 @@ def NN_Block(t, dfI, nn, scaler, **varargs):
         Vars.extend(varargs['addvars'])
     
     # Объявляются переменные
-    b = Block(concrete=True)
+    #b = Block(concrete=True)
+    if 'name' in varargs:
+        b = Block(concrete=True,name=varargs['name'])
+    else:
+        b = Block(concrete=True)
     b.Type='NN'
     b.State = Var(within=Binary) # Используется в add_blocks
     
@@ -148,7 +152,11 @@ def NN_Block(t, dfI, nn, scaler, **varargs):
        
 def Block_Off_State(t,**varargs):
     # Block_Zero(m.t,Vars=['B','Tfw','D0'],Free_Vars=['Tfw']) 
-    b = Block(concrete=True)
+    #b = Block(concrete=True)
+    if 'name' in varargs:
+        b = Block(concrete=True,name=varargs['name'])
+    else:
+        b = Block(concrete=True)
     b.State = Var(within=Binary) # Используется в add_blocks
     b.t=t
     b.Type='Off_State'
@@ -280,7 +288,11 @@ def CH_Block(t,df,**varargs):
         Vars.extend(varargs['addvars'])
 
     # Объявляются переменные
-    b = Block(concrete=True)
+    #b = Block(concrete=True)
+    if 'name' in varargs:
+        b = Block(concrete=True,name=varargs['name'])
+    else:
+        b = Block(concrete=True)
     b.Type='CH'
     b.State = Var(within=Binary) # Используется в add_blocks
     
@@ -360,7 +372,11 @@ def PWL_Block(t,df,**varargs):
         Vars.extend(varargs['addvars'])
     
     # Объявляются переменные
-    b = Block(concrete=True)
+    #b = Block(concrete=True)
+    if 'name' in varargs:
+        b = Block(concrete=True,name=varargs['name'])
+    else:
+        b = Block(concrete=True)
     b.Type='PWL'
     b.State = Var(within=Binary) # Используется в add_blocks
     
@@ -413,9 +429,9 @@ def N_Stages(t,*Blocks,**varargs):
     # возможные дополнительные переменные:
     #
     if 'name' in varargs:
-      b = Block(concrete=True,name=varargs['name'])
+        b = Block(concrete=True,name=varargs['name'])
     else:
-      b = Block(concrete=True)
+        b = Block(concrete=True)
     b.Type='N_Stages'
     b.t = t
     #b.q_delta=ConstraintList()
