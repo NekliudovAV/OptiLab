@@ -412,7 +412,10 @@ def N_Stages(t,*Blocks,**varargs):
     # Формируем ограничения по группе турбин
     # возможные дополнительные переменные:
     #
-    b = Block(concrete=True)
+    if 'name' in varargs:
+      b = Block(concrete=True,name=varargs['name'])
+    else:
+      b = Block(concrete=True)
     b.Type='N_Stages'
     b.t = t
     #b.q_delta=ConstraintList()
