@@ -276,6 +276,8 @@ def dict2block(blocks):
             tblock=CH_Block(i)
         bl.append(tblock)
     return bl
+ #dict2block([{'no_bounds_Vars':['P0','T0','Tfmix','dGfwD0'],'addvars':['Tr','Tw_in','Tw_out','P2'],
+ #'ODZflag':False,'chvars':['N'],'name':'T','type':'CH_Block','df':{},'Blocks':[]}]) 
   
 def CH_Block(t,df,**varargs):
     # CH_Block(t,df,**varargin):
