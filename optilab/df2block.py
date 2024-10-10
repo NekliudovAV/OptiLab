@@ -267,12 +267,27 @@ def Block_Zero2(t,df,**varargs):
        
         
     return b   
-
+  
+def dict2block(blocks):
+    bl=[]
+    for i in blocks:
+        type_=i['type']
+        if type_=='CH_Block':
+            tblock=CH_Block(i)
+        bl.append(tblock)
+    return bl
+  
 def CH_Block(t,df,**varargs):
     # CH_Block(t,df,**varargin):
     # ext - внешние ограничения
     # addvars - Список дополнительных переменных
     # 
+    if isinstance(df,dict):
+        varargs=df
+        df=varargs['df']
+        if len(varargs['block'])>0:
+            varargs['block']=dict2block(varargs['block'])
+  
     Values = df.values
     Vars = list(df.columns)
     VarF = set(df.columns[-1])
