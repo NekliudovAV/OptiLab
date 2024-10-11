@@ -271,7 +271,15 @@ def Block_Zero2(t,df,**varargs):
             b.c_F5.add(b.Vars[t,v]>=Min*b.State)    
        
         
-    return b   
+    return b
+    
+def check_block_dict(d):
+    # Проверяются поля
+    if 'block' not in d.keys():
+        d['block']=[]
+    if 't' not in d.keys():
+        d['t']=[0]
+    return d
   
 def dict2block(blocks):
     bl=[]
@@ -284,13 +292,16 @@ def dict2block(blocks):
  #dict2block([{'no_bounds_Vars':['P0','T0','Tfmix','dGfwD0'],'addvars':['Tr','Tw_in','Tw_out','P2'],
  #'ODZflag':False,'chvars':['N'],'name':'T','type':'CH_Block','df':{},'Blocks':[]}]) 
   
-def CH_Block(t,df,**varargs):
+def CH_Block(t,df={},**varargs):
     # CH_Block(t,df,**varargin):
     # ext - внешние ограничения
     # addvars - Список дополнительных переменных
     # 
+    
     if isinstance(t,dict):
+        t=check_block_dict(t)
         varargs=t
+        t=varargs['t']
         df=varargs['df']
         if len(varargs['block'])>0:
             varargs['block']=dict2block(varargs['block'])
@@ -389,8 +400,10 @@ def CH_Block(t,df,**varargs):
 
 def PWL_Block(t,df,**varargs):
     if isinstance(t,dict):
+        t=check_block_dict(t)
         varargs=t
         df=varargs['df']
+        t=varargs['t']
         if len(varargs['block'])>0:
             varargs['block']=dict2block(varargs['block'])
     Vars = list(df.columns)
@@ -456,8 +469,9 @@ def N_Stages(t,*Blocks,**varargs):
     # возможные дополнительные переменные:
     #
     if isinstance(t,dict):
+        t=check_block_dict(t)
         varargs=t
-        df=varargs['df']
+        t=varargs['t']
         if len(varargs['block'])>0:
             Blocks=dict2block(varargs['block'])
           
