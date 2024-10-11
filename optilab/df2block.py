@@ -398,7 +398,7 @@ def CH_Block(t,df={},**varargs):
         
     return b
 
-def PWL_Block(t,df,**varargs):
+def PWL_Block(t,df={},**varargs):
     if isinstance(t,dict):
         t=check_block_dict(t)
         varargs=t
