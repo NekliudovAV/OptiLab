@@ -153,6 +153,11 @@ def NN_Block(t, dfI, nn, scaler, **varargs):
 def Block_Off_State(t,**varargs):
     # Block_Zero(m.t,Vars=['B','Tfw','D0'],Free_Vars=['Tfw']) 
     #b = Block(concrete=True)
+    if isinstance(t,dict):
+        varargs=df
+        df=varargs['df']
+        if len(varargs['block'])>0:
+            varargs['block']=dict2block(varargs['block'])
     if 'name' in varargs:
         b = Block(concrete=True,name=varargs['name'])
     else:
@@ -284,8 +289,8 @@ def CH_Block(t,df,**varargs):
     # ext - внешние ограничения
     # addvars - Список дополнительных переменных
     # 
-    if isinstance(df,dict):
-        varargs=df
+    if isinstance(t,dict):
+        varargs=t
         df=varargs['df']
         if len(varargs['block'])>0:
             varargs['block']=dict2block(varargs['block'])
@@ -383,6 +388,11 @@ def CH_Block(t,df,**varargs):
     return b
 
 def PWL_Block(t,df,**varargs):
+    if isinstance(t,dict):
+        varargs=t
+        df=varargs['df']
+        if len(varargs['block'])>0:
+            varargs['block']=dict2block(varargs['block'])
     Vars = list(df.columns)
     # Добавляются вспомогательные переменные
     if 'addvars' in varargs:
@@ -445,6 +455,12 @@ def N_Stages(t,*Blocks,**varargs):
     # Формируем ограничения по группе турбин
     # возможные дополнительные переменные:
     #
+    if isinstance(t,dict):
+        varargs=t
+        df=varargs['df']
+        if len(varargs['block'])>0:
+            Blocks=dict2block(varargs['block'])
+          
     if 'name' in varargs:
         b = Block(concrete=True,name=varargs['name'])
     else:
