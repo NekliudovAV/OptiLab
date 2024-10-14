@@ -4,8 +4,8 @@ from influxdb import DataFrameClient
 
 import config
 # Пример содержания config.py
-# config={'MONGO':{'mongoDB_name':'biysk', 'IP_':'10.16.0.157', 'port_' : 27017, 'username_':'username', 'password_':'password'},
-#         'INFLUX':{'InfluxDB_name':'biysk2', 'IP_':'10.16.0.157', 'port_' : 8086}}
+# config={'MONGO':{'mongoDB_name':'biysk', 'IP_':'127.0.0.1', 'port_' : 27017, 'username_':'mongo', 'password_':'mongo'},
+#         'INFLUX':{'InfluxDB_name':'biysk2', 'IP_':'127.0.0.1', 'port_' : 8086}}
 
 
 # mongo
