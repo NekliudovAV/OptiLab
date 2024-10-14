@@ -9,11 +9,11 @@ import config
 
 
 # mongo
-def write_FD_2mongo(DFStages,TA='T3',Type='DFSt',IP=config['MONGO']['IP_']):
+def write_FD_2mongo(DFStages,Equipment='T3',Type='DFSt',IP=config['MONGO']['IP_']):
         for k in DFStages.keys():
             if isinstance(DFStages[k],pd.DataFrame):
                 DFStages[k]=DFStages[k].to_json()
-        dict2mongo = {'name':TA+'.'+Type,
+        dict2mongo = {'name':Equipment+'.'+Type,
                       Type : DFStages}
 
         client = MongoClient(IP, config['MONGO']['port_'],
