@@ -4,8 +4,8 @@ from influxdb import DataFrameClient
 
 import config
 # Пример содержания config.py
-# config={'MONGO':{'mongoDB_name':'biysk', 'IP_':'127.0.0.1', 'port_' : 27017, 'username_':'mongo', 'password_':'mongo','database_':'TES'},
-#         'INFLUX':{'InfluxDB_name':'biysk2', 'IP_':'127.0.0.1', 'port_' : 8086, 'database_':'TES'}}
+# config={'MONGO':{'DB_name':'TES', 'IP_':'127.0.0.1', 'port_' : 27017, 'username_':'mongo', 'password_':'mongo'},
+#         'INFLUX':{'DB_name':'TES', 'IP_':'127.0.0.1', 'port_' : 8086}}
 
 
 # mongo
@@ -19,7 +19,7 @@ def write_FD_2mongo(DFStages,Equipment='T3',Type='DFSt',IP=config.MONGO['IP_']):
         client = MongoClient(IP, config.MONGO['port_'],
                              username=config.MONGO['username_'],
                               password=config.MONGO['password_'])
-        db = client[config.MONGO['TES']]
+        db = client[config.MONGO['DB_name']]
         posts = db.posts
         result = posts.insert_many([dict2mongo])
         client.close()
@@ -29,7 +29,7 @@ def read_FD_from_mongo(Equipment='T3',Type='DFSt',IP=config.MONGO['IP_']):
         client = MongoClient(IP, config.MONGO['port_'],
                                   username=config.MONGO['username_'],
                                   password=config.MONGO['password_'])
-        db = clientconfig.MONGO['TES']
+        db = clientconfig.MONGO['DB_name']
         posts = db.posts
         result = list(posts.find({"name":Equipment+'.'+Type}))[-1]
         client.close()
@@ -51,7 +51,7 @@ def list_database_names():
 
 # influx
 def write_DF_2_influxDB(resdf, calc_type,  database_,  time_zone_ = None, tags_=None):
-    influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=config.INFLUX['database_'])
+    influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=config.INFLUX['DB_name'])
     influx_DBname = calc_type
     influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
@@ -73,7 +73,7 @@ def read_DF_from_influxDB(host_ = None,
     if port_==None:    
         port_=config.INFLUX['port_']
     if database_==None:    
-        database_ = config.INFLUX['InfluxDB_name']
+        database_ = config.INFLUX['DB_name']
     if time_zone_ == None:    
         time_zone_ = 'Etc/GMT-3'
     #print('port_',port_, type(port_))    
