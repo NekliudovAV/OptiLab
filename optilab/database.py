@@ -5,7 +5,7 @@ from influxdb import DataFrameClient
 import config
 # Пример содержания config.py
 # config={'MONGO':{'mongoDB_name':'biysk', 'IP_':'127.0.0.1', 'port_' : 27017, 'username_':'mongo', 'password_':'mongo','database_':'TES'},
-#         'INFLUX':{'InfluxDB_name':'biysk2', 'IP_':'127.0.0.1', 'port_' : 8086}}
+#         'INFLUX':{'InfluxDB_name':'biysk2', 'IP_':'127.0.0.1', 'port_' : 8086, 'database_':'TES'}}
 
 
 # mongo
@@ -50,3 +50,39 @@ def list_database_names():
 # creates databases and collections automatically for you if they don't exist already. 
 
 # influx
+def write_pyomo_results_2_influxDB(resdf, calc_type,  database_,  time_zone_ = None, tags_=None):
+    influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=config.INFLUX['database_'])
+    influx_DBname = calc_type
+    influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
+    influxDataFrameClient_client.close()
+    return True
+
+def load_seac_pre_calculations(host_ = None,
+                               port_ = None,
+                               database_ = None,
+                               table_ = None,
+                               timestamp_ = None,
+                               time_zone_ = None):
+    """
+    Запрос из БД InfluxDB предрасчетный параметров 
+    Возвращает dataframe с предрасчетными параметрами
+    """
+    #t0 = time.time()
+    if host_==None:
+        host_=config.INFLUX['IP_']
+    if port_==None:    
+        port_=config.INFLUX['port_']
+    if database_==None:    
+        database_ = config.INFLUX['InfluxDB_name']
+    if time_zone_ == None:    
+        time_zone_ = 'Etc/GMT-3'
+    #print('port_',port_, type(port_))    
+    influxDataFrameClient_client = DataFrameClient(host = host_, port = port_, database = database_)
+    influx_DBname = table_
+    df = influxDataFrameClient_client.query(f"""select * from {influx_DBname} where time = '{timestamp_}' tz('{time_zone_}')""")[influx_DBname]    
+    df = df.tz_convert(time_zone_)
+    influxDataFrameClient_client.close()
+    # dt = time.time() - t0
+    #print(f'Запрос данных по {df.shape[1]} каналам измерений за {df.shape[0]} периодов выполнен за {dt: 3.3f} c')
+    return df
+
