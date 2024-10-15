@@ -5,8 +5,8 @@ from influxdb import DataFrameClient
 
 import config
 # Пример содержания config.py
-# config={'MONGO':{'DB_name':'TES', 'IP_':'127.0.0.1', 'port_' : 27017, 'username_':'mongo', 'password_':'mongo'},
-#         'INFLUX':{'DB_name':'TES', 'IP_':'127.0.0.1', 'port_' : 8086}}
+# MONGO={'DB_name':'TES', 'IP_':'127.0.0.1', 'port_' : 27017, 'username_':'mongo', 'password_':'mongo'}
+# INFLUX={'DB_name':'TES', 'IP_':'127.0.0.1', 'port_' : 8086}
 
 
 # mongo
