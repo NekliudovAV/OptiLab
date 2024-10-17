@@ -51,8 +51,10 @@ def list_database_names():
 # creates databases and collections automatically for you if they don't exist already. 
 
 # influx
-def write_DF_2_influxDB(resdf, calc_type,  database_,  time_zone_ = None, tags_=None):
-    influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=config.INFLUX['DB_name'])
+def write_DF_2_influxDB(resdf, calc_type,  database_ =None,  time_zone_ = None, tags_=None):
+    if database_ ==None:
+            database_=config.INFLUX['DB_name'
+    influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=database_)
     influx_DBname = calc_type
     influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
