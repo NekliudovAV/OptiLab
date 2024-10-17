@@ -53,7 +53,7 @@ def list_database_names():
 # influx
 def write_DF_2_influxDB(resdf, calc_type,  database_ =None,  time_zone_ = None, tags_=None):
     if database_ ==None:
-            database_=config.INFLUX['DB_name'
+            database_=config.INFLUX['DB_name']
     influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=database_)
     influx_DBname = calc_type
     influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
