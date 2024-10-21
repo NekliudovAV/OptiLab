@@ -56,7 +56,7 @@ def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None
             database_=config.INFLUX['DB_name']
    
     influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=database_)
-    influx_DBname = calc_type
+    influx_DBname = table_
     influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
     return True
