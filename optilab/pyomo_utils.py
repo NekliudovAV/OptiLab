@@ -4,6 +4,7 @@ import pickle
 from pyomo.environ import *
 import cloudpickle
 import base64
+import pandas as pd
 
 # Список ограничений
 def list_constraint(m):
