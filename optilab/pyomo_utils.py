@@ -25,8 +25,39 @@ def list_vars(m):
     for Var1 in m.component_data_objects(Var):
         Vars.append(Var1.name)
     return Vars   
-
-
+    
+# Формирование отчёта
+def gen_report(m):
+        DF = pd.DataFrame()
+        for v in m.component_objects(Var,active=True):
+            #print(v.name)
+            for index in v:
+                if v.name.count('.')<3 * isinstance(index,int):
+                    if v[index].value is None:
+                        value=0
+                        t_=index
+                    elif v[index].value>=0:
+                        if isinstance(index,int):
+                            value=v[index].value
+                            t_=index
+                        elif isinstance(index,tuple):
+                            value=v[index].value*np.sign(-index[1]+.5)
+                            t_=index[0]
+                        DF.at[t_, v.name] = value
+                elif v.name.count('.')<3 * isinstance(index,tuple):
+                    if v.name.find('PW')<=0:
+                        var_=index[1]
+                        VName=v.name
+                        VName=VName.replace('.Vars', "")
+                        time_=index[0]
+                        DF.at[time_,VName+'.'+str(var_)] =  v[index].value
+                        
+                elif (v.name.count('.')<3) * (index is None):# isinstance(index,str):
+                    value=v.value
+                    t_=0
+                    DF.at[t_, v.name] = value                     
+        return DF
+        
 #Сохранение модели в файл
 def save_pyomo_model(model,filename):
     strmodel=base64.b64encode(model).decode('utf-8')
