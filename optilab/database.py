@@ -60,6 +60,30 @@ def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None
     influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
     return True
+        
+def save_df_2_db(res2,table_='Optimize',database_='TES',Tag_Names=['Ni','Fleet', 'nboilers']):
+    Others=list(set(res2.keys())-set(Tag_Names))
+    temp=res2[Tag_Names].drop_duplicates()
+    print('Уникальные теги:',temp, 'количество уникальных сочетаний:', temp.shape[0])
+    for o in range(temp.shape[0]): 
+                tt=temp.iloc[o]
+                print('Индекс уникального сочетания:',o)
+                print(tt)
+                # Формируем значения resdf для тега tags_
+                for i in range(tt.shape[0]):
+                    tags_={}
+                    k=0
+                    for t in tt.keys():
+                        tags_[t]=str(tt[t])
+                        if k==0:
+                            temp=res2[t]==tt[t]
+                            k=k+1
+                        else:
+                            temp=temp&(res2[t]==tt[t])
+                #print(tags_)
+                resdf=res2[Others][temp]    
+                #print(resdf) # Для отладки
+                write_DF_2_influxDB(resdf,table_, database_,tags_=tags_)
 
 def read_DF_from_influxDB(host_ = None,
                           port_ = None,
