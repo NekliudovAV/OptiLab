@@ -6,6 +6,33 @@ import numpy as np
 import string
 import copy
 
+# Сохранение таблицы с переменными DrawIO
+def Draio2Table(DrawIOFile='TA8.xml',XlsFile='Table_id1.xlsx'):
+    tree = ET.parse(DrawIOFile)
+    root = tree.getroot()
+    diagram = root[0]
+    Table=[]
+    for mxCell in diagram.iter('mxCell'):
+        id=mxCell.get('id')
+        if mxCell.get('value') is None:
+            Value=''
+        else:
+            Value=mxCell.get('value')
+            Value=Value.replace('&nbsp;','')
+            out=re.search('>\w*\s?\w*</',Value)
+            if not out is None:
+                Value=out.group(0)[1:-2]
+        if mxCell.get('style') is None:
+            figure=''
+        else:
+            figure=mxCell.get('style').split(';')[0]
+        if len(Value)>0:   
+            Table.append(pd.DataFrame({'id':[id],'Переменная':[Value],'Добалвение текста:':['anl'],'Цвет':[''],'Тип фигуры':[figure]}))
+    Table=pd.concat(Table)
+    Table=Table.reset_index().drop(columns=['index'])
+    Table.to_excel(XlsFile)
+    return  Table
+
 # Открытие файла Json
 JsonFile='teploset.json'
 with codecs.open(JsonFile, "r","utf_8_sig") as json_file:
