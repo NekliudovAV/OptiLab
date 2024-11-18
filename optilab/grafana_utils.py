@@ -29,7 +29,7 @@ def Draio2Table(DrawIOFile='TA8.xml',XlsFile='Table_id1.xlsx'):
         else:
             figure=mxCell.get('style').split(';')[0]
         if len(Value)>0:   
-            Table.append(pd.DataFrame({'id':[id],'Переменная':[Value],'Добалвение текста':['anl'],'Цвет':[''],'Тип фигуры':[figure]}))
+            Table.append(pd.DataFrame({'id':[id],'Переменная':[Value],'Добалвение текста':['anl'],'Цвет':[' '],'Тип фигуры':[figure]}))
     Table=pd.concat(Table)
     Table=Table.reset_index().drop(columns=['index'])
     Table.to_excel(XlsFile)
