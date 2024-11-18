@@ -287,3 +287,8 @@ def num2alfabeta(i):
     else:
         out=string.ascii_uppercase[int(np.fix(i/26-1))]+string.ascii_uppercase[i%26] 
     return  out
+# Пример вызова    
+# JsonFile='TA8.json'
+# DataFile='TA8_aouto.xlsx'
+# DrawIOFile='TA8.xml'
+correct_Gr_Json(JsonFile,DataFile,DrawIOFile,Type=1)
