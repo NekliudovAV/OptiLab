@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 import string
 import copy
+import re 
+import xml.etree.ElementTree as ET
 
 # Сохранение таблицы с переменными DrawIO
 def Draio2Table(DrawIOFile='TA8.xml',XlsFile='Table_id1.xlsx'):
