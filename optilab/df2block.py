@@ -389,12 +389,8 @@ def CH_Block(t,df={},**varargs):
             Min=-10000
         return b.Vars[t,v] >= Min*b.State
 
-    if 'ODZflag' in varargs:
-        if varargs['ODZflag'] == False:
-            pass
-    else:
-        b.cS0_up = Constraint(b.t, Vars, rule=cS0_up)
-        b.cS0_bm = Constraint(b.t, Vars, rule=cS0_bm)
+    b.cS0_up = Constraint(b.t, Vars, rule=cS0_up)
+    b.cS0_bm = Constraint(b.t, Vars, rule=cS0_bm)
         
     return b
 
