@@ -4,6 +4,7 @@ from df2block import *
 from pyomo_utils import list_constraint,list_ovjective,gen_report
 from clsTurbineOpt import select_indexes
 from pyomo.environ import *
+from sympy import symbols, sympify
 
 # Для стандартизации расчётной модели удобнее вынести управление генерации оптимизационной модели в таблшичный файл
 # Представленный ниже код помогнает реализовать эту идею
