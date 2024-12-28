@@ -80,7 +80,7 @@ def create_Blocks(Data,DF_Objects):
                     varargs[tk]=value
 
         print('-------------Name:-----------------',Name)
-        print(varargs)
+        print('varargs: ',varargs)
 
         if func in ['CH_Block']:
             if not DF is None:
@@ -94,8 +94,12 @@ def create_Blocks(Data,DF_Objects):
             else:
                 print('!!!!________________Error in Name DF__________!!!!!!') 
                 Error
-        elif func in ['N_Stages']:    
-            B=N_Stages(t,*block)
+        elif func in ['N_Stages']:     
+            # Удаление 
+            varargs.pop('Type')
+            varargs.pop('Obj')
+            varargs.pop('block')
+            B=N_Stages(t,*block,**varargs)
         elif func in ['Block_Off_State']:         
             B=Block_Off_State(t,Vars=varargs['addvars'],Free_Vars=varargs['no_bounds_Vars'])   
         Blocks[Name]=B
