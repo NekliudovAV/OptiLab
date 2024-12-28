@@ -490,7 +490,26 @@ def N_Stages(t,*Blocks,**varargs):
                 BlockVarNames.append(vn)
                 
     if 'addvars' in varargs:
-        BlockVarNames.extend(varargs['addvars'])
+        Text=varargs['addvars']
+        if not isinstance(Text,list):
+            Text=Text.split(',')
+
+        AddVars={}
+        for Var_ in Text:
+            Var_=Var_.split(':')
+            if len(Var_)<=1:
+                Var_.append('float')
+            print(Var_)    
+            
+            if  Var_[1] in AddVars.keys():
+                AddVars[Var_[1]].append(Var_[0])
+            else:
+                AddVars[Var_[1]]=[Var_[0]]
+        print('--------------',AddVars,'------------')        
+        if  'float' in AddVars.keys():       
+            BlockVarNames.extend(AddVars['float'])    
+        if  'bool' in AddVars.keys():           
+            b.BoolVars = Var(AddVars['bool'])
     
     # Создаём переменные
     b.Vars = Var(b.t, BlockVarNames)
