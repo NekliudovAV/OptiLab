@@ -328,3 +328,52 @@ def calculate_(m,FData,calctype='Dmin'):
         temp.append(res[[i for i in res.keys() if i.count('.')<2]])
     res_out=pd.concat(temp)
     return res_out    
+
+def dict_vars(m):
+    Vars={}
+    for Var1 in m.component_data_objects(Var):
+        name=Var1.name
+        if name.count('.')<2:
+            name=name.replace('BoolVars[','')
+            name=name.replace('Vars[0,','').replace(']','')
+            
+            Vars[name]=Var1
+    return Vars 
+
+def add_Eq_In_STR(TBlock,eq):
+    DV=dict_vars(TBlock)
+    if '<=' in eq:
+        Type ='InEq'
+        eq=eq.split('<=')
+    elif '=' in eq:
+        Type = 'Eq' 
+        eq=eq.split('=')
+    string = eq[1]+'-'+eq[0]
+    expr = sympify(string)
+    args=list(expr.args)
+
+    print(expr)
+    free_syms = sorted(expr.free_symbols, key = lambda symbol: symbol.name)
+    if args[0].is_constant():
+        konstant=float(args[0])
+    else:
+        konstant=0
+
+    expr_=konstant
+    for fs in free_syms: 
+        print(fs,'Коэффициент: ',expr.coeff(fs))
+        expr_=expr_+float(expr.coeff(fs))*DV[str(fs)]
+    # Определение константы:
+    args=list(expr.args)
+    print('Константа:',konstant)
+    if Type in ['InEq']:
+        TBlock.CLE.add(expr=expr_<=0)
+    elif Type in ['Eq']:    
+        TBlock.CLE.add(expr=expr_==0)
+    #TBlock.CL.pprint()    
+    
+def add_Equestions(TBlock,eqs):  
+    if 'CLE[1]' not in list_constraint(TBlock):
+        TBlock.CLE=ConstraintList()
+    for eq in eqs:
+        add_Eq_In_STR(TBlock,eq)    
