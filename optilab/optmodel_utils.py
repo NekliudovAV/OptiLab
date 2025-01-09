@@ -305,8 +305,10 @@ def set_MF(m_,Type,accuracy_dh):  # Более корректная интерп
         print(list_ovjective(m_))
         m_.O = Objective(expr= m_.MF, sense=minimize)
         
-def get_block(b,name):
-    return Blocks[name].clone()      
+def get_Blocks(Blocks,name):
+    def get_block_(b,name):
+        return Blocks[name].clone()
+    return Block(Turbines,rule=get_block_)          
 
 # Выполнение расчёта для интервала времени
 def calculate_(m,FData,calctype='Dmin'):
