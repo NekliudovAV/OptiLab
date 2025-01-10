@@ -352,8 +352,11 @@ def dict_vars(m,Stages=False):
 def add_Eq_In_STR(TBlock,eq):
     DV=dict_vars(TBlock)
     if '<=' in eq:
-        Type ='InEq'
+        Type ='InEq1'
         eq=eq.split('<=')
+    elif '>=' in eq:
+        Type ='InEq2'
+        eq=eq.split('>=')
     elif '=' in eq:
         Type = 'Eq' 
         eq=eq.split('=')
@@ -374,18 +377,20 @@ def add_Eq_In_STR(TBlock,eq):
     for fs in free_syms: 
         str_fs=str(fs).replace('_point_','.')
         print(str_fs,'Коэффициент: ',expr.coeff(fs))
-        
         expr_=expr_+float(expr.coeff(fs))*DV[str_fs]
     # Определение константы:
     args=list(expr.args)
     print('Константа:',konstant)
-    if Type in ['InEq']:
-        TBlock.CLE.add(expr=expr_<=0)
+    if Type in ['InEq1']:
+        TBlock.CL.add(expr=expr_<=0)
+    elif Type in ['InEq2']:
+        TBlock.CL.add(expr=expr_>=0)
     elif Type in ['Eq']:    
-        TBlock.CLE.add(expr=expr_==0)
+        TBlock.CL.add(expr=expr_==0)
+    #TBlock.CL.pprint()    
     
 def add_Equestions(TBlock,eqs):  
-    if 'CLE[1]' not in list_constraint(TBlock):
-        TBlock.CLE=ConstraintList()
+    if 'CL[1]' not in list_constraint(TBlock):
+        TBlock.CL=ConstraintList()
     for eq in eqs:
-        add_Eq_In_STR(TBlock,eq)    
+        add_Eq_In_STR(TBlock,eq)       
