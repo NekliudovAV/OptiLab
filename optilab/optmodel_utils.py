@@ -341,6 +341,7 @@ def dict_vars(m,Stages=False):
                 name=name.replace('BoolVars[','')
                 name=name.replace('Vars[0,','').replace(']','')
                 name=name.replace('[','')
+                name=name.replace('Turbines','')
                 name=name.replace('Turbine','')
                 name=name.replace('Boilers','')
                 name=name.replace('REU','')
