@@ -332,15 +332,20 @@ def calculate_(m,FData,calctype='Dmin'):
     res_out=pd.concat(temp)
     return res_out    
 
-def dict_vars(m):
+def dict_vars(m,Stages=False):
     Vars={}
     for Var1 in m.component_data_objects(Var):
         name=Var1.name
-        if name.count('.')<2:
-            name=name.replace('BoolVars[','')
-            name=name.replace('Vars[0,','').replace(']','')
-            
-            Vars[name]=Var1
+        if ('Stages'not in name) or Stages:
+            if name.count('.')<2:
+                name=name.replace('BoolVars[','')
+                name=name.replace('Vars[0,','').replace(']','')
+                name=name.replace('[','')
+                name=name.replace('Turbine','')
+                name=name.replace('Boilers','')
+                name=name.replace('REU','')
+                
+                Vars[name]=Var1
     return Vars 
 
 def add_Eq_In_STR(TBlock,eq):
@@ -352,7 +357,9 @@ def add_Eq_In_STR(TBlock,eq):
         Type = 'Eq' 
         eq=eq.split('=')
     string = eq[1]+'-'+eq[0]
-    expr = sympify(string)
+    #expr = sympify(string)
+    string=string.replace('.','_point_')
+    expr=parse_expr(string,local_dict={'N':symbols('N')})
     args=list(expr.args)
 
     print(expr)
@@ -364,8 +371,10 @@ def add_Eq_In_STR(TBlock,eq):
 
     expr_=konstant
     for fs in free_syms: 
-        print(fs,'Коэффициент: ',expr.coeff(fs))
-        expr_=expr_+float(expr.coeff(fs))*DV[str(fs)]
+        str_fs=str(fs).replace('_point_','.')
+        print(str_fs,'Коэффициент: ',expr.coeff(fs))
+        
+        expr_=expr_+float(expr.coeff(fs))*DV[str_fs]
     # Определение константы:
     args=list(expr.args)
     print('Константа:',konstant)
@@ -373,7 +382,6 @@ def add_Eq_In_STR(TBlock,eq):
         TBlock.CLE.add(expr=expr_<=0)
     elif Type in ['Eq']:    
         TBlock.CLE.add(expr=expr_==0)
-    #TBlock.CL.pprint()    
     
 def add_Equestions(TBlock,eqs):  
     if 'CLE[1]' not in list_constraint(TBlock):
