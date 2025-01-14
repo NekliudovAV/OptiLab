@@ -351,6 +351,11 @@ def dict_vars(m,Stages=False):
 
 def add_Eq_In_STR(TBlock,eq):
     DV=dict_vars(TBlock)
+    # Переименование DV в случае, если локально работаем
+    BNAME=get_block_name(TBlock.name)
+    if len(BNAME)>0:
+        DV=dict((key.replace('Stages','').replace(BNAME+'.',''), value) for (key, value) in DV.items()) 
+    
     if '<=' in eq:
         Type ='InEq1'
         eq=eq.split('<=')
@@ -362,7 +367,8 @@ def add_Eq_In_STR(TBlock,eq):
         eq=eq.split('=')
     string = eq[1]+'-'+eq[0]
     #expr = sympify(string)
-    string=string.replace('.','_point_')
+    #string=string.replace('.','_point_')
+    string=re.sub(r'\w+\.[^\d]', lambda x: x.group(0).replace('.', '_point_'), string)
     expr=parse_expr(string,local_dict={'N':symbols('N')})
     args=list(expr.args)
 
@@ -374,10 +380,21 @@ def add_Eq_In_STR(TBlock,eq):
         konstant=0
 
     expr_=konstant
+    Vars_not_Found=[]
     for fs in free_syms: 
         str_fs=str(fs).replace('_point_','.')
         print(str_fs,'Коэффициент: ',expr.coeff(fs))
+        if str_fs not in DV.keys():
+            Vars_not_Found.append(str_fs)
+            print(str_fs, 'отсутствует в списке переменных')
+            print('список переменных:', list(DV.keys()))
+    if len(Vars_not_Found)>0:
+        return Vars_not_Found
+            
+    for fs in free_syms: 
+        str_fs=str(fs).replace('_point_','.')
         expr_=expr_+float(expr.coeff(fs))*DV[str_fs]
+        
     # Определение константы:
     args=list(expr.args)
     print('Константа:',konstant)
@@ -387,10 +404,53 @@ def add_Eq_In_STR(TBlock,eq):
         TBlock.CL.add(expr=expr_>=0)
     elif Type in ['Eq']:    
         TBlock.CL.add(expr=expr_==0)
-    #TBlock.CL.pprint()    
+    return Vars_not_Found
     
 def add_Equestions(TBlock,eqs):  
-    if 'CL[1]' not in list_constraint(TBlock):
+    LCs=list_constraint(TBlock)
+    Status=[]
+    if ('CL[1]' not in LCs) and (TBlock.name+'.'+'CL[1]' not in LCs):
         TBlock.CL=ConstraintList()
     for eq in eqs:
-        add_Eq_In_STR(TBlock,eq)       
+        try:
+            Vars_Not_Found=add_Eq_In_STR(TBlock,eq) 
+            if len (Vars_Not_Found)==0:
+                Status.append(pd.DataFrame({'Obj':[TBlock.name],'Eq':[eq],'Status':['OK']}))
+            else:
+                Status.append(pd.DataFrame({'Obj':[TBlock.name],'Eq':[eq],'Status':['No Vars:'+';'.join(Vars_Not_Found)]}))
+        except:
+            print('Error in:', eq)
+            Status.append(pd.DataFrame({'Obj':[TBlock.name],'Eq':[eq],'Status':['Error']}))
+    return  pd.concat(Status)
+            
+
+def add_ST_to_DF(DF_Eq):
+    # Добавление колонки Block_Stages
+    ST=[]
+    for i in range(DF_Eq.shape[0]):
+        if pd.isna(DF_Eq['Stages index'].iloc[i]):
+            St=''
+        else:
+            St='.'+str(int(DF_Eq['Stages index'].iloc[i]))
+        ST.append(DF_Eq['Block'].iloc[i]+St)
+    DF_Eq['Block_Stages']=ST
+       
+
+
+def Dict_EQ(DF_Eq):
+    # Группировка строк
+    Eq_dict={}
+    for i in range(DF_Eq.shape[0]):
+        Eq=DF_Eq['Equestions'].iloc[i]
+        if DF_Eq['Block_Stages'].iloc[i] in Eq_dict.keys():
+            Eq_dict[DF_Eq['Block_Stages'].iloc[i]].append(Eq) 
+        else:
+            Eq_dict[DF_Eq['Block_Stages'].iloc[i]]=[Eq]
+    return Eq_dict
+
+#add_ST_to_DF(DF_Eq)    
+#DE=Dict_EQ(DF_Eq)
+#for k in DE.keys():
+#    Eq=DE[k]
+#    TBlock=BlockDict[k]
+#    add_Equestions1(TBlock,Eq)
