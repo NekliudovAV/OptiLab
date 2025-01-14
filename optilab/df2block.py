@@ -171,6 +171,8 @@ def Block_Off_State(t,**varargs):
     
     if 'Free_Vars' in varargs:
         Free_Vars=set(varargs['Free_Vars'])
+        if '*' in Free_Vars:
+            Free_Vars=set(Vars)
     else:
         Free_Vars=set()
         
