@@ -1100,3 +1100,23 @@ def list_vars(m):
         Vars.append(Var1.name)
     return Vars    
 
+def list_blocks(m):
+    Blocks=[]
+    for Block_ in m.component_data_objects(Block):
+        Blocks.append(Block_.name)
+    return Blocks  
+    
+def dict_blocks(m,max_count_point=0,rename_blocks=True):
+    Blocks={}
+    for Block_ in m.component_data_objects(Block):
+        Block_name=Block_.name
+        if Block_.name.count('.')<=max_count_point:
+            if rename_blocks:
+                Block_name=get_block_name(Block_name)
+            Blocks[Block_name]=Block_
+    return Blocks      
+    
+def get_block_name(Block_name):
+    s = re.findall(r"\[(.*?)\]", Block_name)
+    s = '.'.join(s)
+    return s
