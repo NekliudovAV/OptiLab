@@ -1,10 +1,10 @@
 import numpy as np
+import pandas as pd
 from pyomo.environ import *
 from df2block import *
 from pyomo_utils import list_constraint,list_ovjective,gen_report
-from clsTurbineOpt import select_indexes
 from pyomo.environ import *
-from sympy import symbols, sympify
+from sympy import symbols, sympify, parse_expr
 
 # Для стандартизации расчётной модели удобнее вынести управление генерации оптимизационной модели в таблшичный файл
 # Представленный ниже код помогнает реализовать эту идею
@@ -24,12 +24,15 @@ def select_DF(Data,DF_keys):
             return None
     DF_=Temp
     return DF_
+    
+   
 
 def Prepare_Var(Value):
     # Преобразование Str в список. Запятые являются разделителями
     if (Value is None) or (Value is np.NAN):        
         return None
-    elif isinstance(Value,str):        
+    elif isinstance(Value,str): 
+        Value=Value.replace(',\n',',').replace(' ','')
         return Value.split(',')
     else:
         #print(type(Value))
@@ -39,17 +42,19 @@ def add_Lims_2Model(m,Lims):
     # Добавление ограничений на переменные
     # m оптимизационная модель
     # Lims ограничения
+    DV=dict_vars(m,Stages=True,max_point=3)
     for i in range(Lims.shape[0]):
         Temp=Lims.iloc[i]
         # Добавляем Max
-        if Temp.Var in m.Turbine[Temp.Obj].VarNames:
-            if not (Temp.Max is np.NAN): 
-                m.Turbine[Temp.Obj].Vars[0,Temp.Var].setub(Temp.Max)
-            if not (Temp.Min is np.NAN): 
-                m.Turbine[Temp.Obj].Vars[0,Temp.Var].setlb(Temp.Min)
-            print(m.Turbine[Temp.Obj].Vars[0,Temp.Var].name,'lb:',Temp.Min,' ub:',Temp.Max)
+        VarName=Temp.Obj+'.'+Temp.Var
+        if VarName in DV.keys():
+                if not (Temp.Max is np.NAN): 
+                     DV[VarName].setub(Temp.Max)
+                if not (Temp.Min is np.NAN): 
+                    DV[VarName].setlb(Temp.Min)
+                print(DV[VarName].name,'lb:',Temp.Min,' ub:',Temp.Max)
         else: 
-                print ('Ошибка в имени переменной',Temp.Var,'! Определены:', m.Turbine[Temp.Obj].VarNames)     
+            print ('!!!!! Ошибка в имени переменной',VarName,'!!!!')  
 
 def create_Blocks(Data,DF_Objects):
     # Data словарь с харакетристиками
@@ -101,8 +106,11 @@ def create_Blocks(Data,DF_Objects):
             varargs.pop('Obj')
             varargs.pop('block')
             B=N_Stages(t,*block,**varargs)
-        elif func in ['Block_Off_State']:         
-            B=Block_Off_State(t,Vars=varargs['addvars'],Free_Vars=varargs['no_bounds_Vars'])   
+        elif func in ['Block_Off_State']: 
+            if 'no_bounds_Vars' in varargs.keys():
+                B=Block_Off_State(t,Vars=varargs['addvars'],Free_Vars=varargs['no_bounds_Vars'])   
+            else:
+                B=Block_Off_State(t,Vars=varargs['addvars'])   
         Blocks[Name]=B
     return Blocks
 
@@ -174,6 +182,22 @@ def find_constr(T11,name_constr='res_list'):
         if name_constr in i:
             exist=True
     return  exist  
+    
+def select_indexes(g_range2):
+    k=0
+    ind=[0]
+    last=g_range2[0]
+    g_range2
+    for i in range(1,len(g_range2)):
+        last=g_range2[k-1]
+        now_=g_range2[k]
+        k+=1
+        next_=g_range2[k]
+        if (last!=now_)|(next_!=now_):
+            ind.append(k-1)
+    # добавляем последний
+    ind.append(k)
+    return np.unique(ind)     
 
 def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
         # Добавление блока небалансовых уравнений
@@ -304,11 +328,12 @@ def set_MF(m_,Type,accuracy_dh):  # Более корректная интерп
         print('-----------set m.O-------------')
         print(list_ovjective(m_))
         m_.O = Objective(expr= m_.MF, sense=minimize)
-        
+
 def get_Blocks(Blocks,name):
     def get_block_(b,name):
         return Blocks[name].clone()
-    return Block(Turbines,rule=get_block_)          
+    return Block(name,rule=get_block_)        
+   
 
 # Выполнение расчёта для интервала времени
 def calculate_(m,FData,calctype='Dmin'):
@@ -331,13 +356,16 @@ def calculate_(m,FData,calctype='Dmin'):
         temp.append(res[[i for i in res.keys() if i.count('.')<2]])
     res_out=pd.concat(temp)
     return res_out    
-
-def dict_vars(m,Stages=False):
+    
+def dict_vars(m,Stages=False,max_point=2):
     Vars={}
+    if 'Stages' in m.name:
+        max_point=max_point+1
+        Stages=True
     for Var1 in m.component_data_objects(Var):
         name=Var1.name
         if ('Stages'not in name) or Stages:
-            if name.count('.')<2:
+            if name.count('.')<max_point:
                 name=name.replace('BoolVars[','')
                 name=name.replace('Vars[0,','').replace(']','')
                 name=name.replace('[','')
@@ -345,16 +373,20 @@ def dict_vars(m,Stages=False):
                 name=name.replace('Turbine','')
                 name=name.replace('Boilers','')
                 name=name.replace('REU','')
-                
+                name=name.replace('PVDPVD','PVD')
+                name=name.replace('Stages','')
                 Vars[name]=Var1
     return Vars 
 
-def add_Eq_In_STR(TBlock,eq):
-    DV=dict_vars(TBlock)
-    # Переименование DV в случае, если локально работаем
+def add_Eq_In_STR(TBlock,eq,DV=None):
     BNAME=get_block_name(TBlock.name)
+    if DV==None:
+        DV={}
+    temp=dict_vars(TBlock)
     if len(BNAME)>0:
-        DV=dict((key.replace('Stages','').replace(BNAME+'.',''), value) for (key, value) in DV.items()) 
+        temp=dict((key.replace('Stages','').replace(BNAME+'.',''), value) for (key, value) in temp.items())        
+    DV={**DV,**temp}
+    # Переименование DV в случае, если локально работаем
     
     if '<=' in eq:
         Type ='InEq1'
@@ -406,14 +438,14 @@ def add_Eq_In_STR(TBlock,eq):
         TBlock.CL.add(expr=expr_==0)
     return Vars_not_Found
     
-def add_Equestions(TBlock,eqs):  
+def add_Equestions(TBlock,eqs,DV=None):  
     LCs=list_constraint(TBlock)
     Status=[]
     if ('CL[1]' not in LCs) and (TBlock.name+'.'+'CL[1]' not in LCs):
         TBlock.CL=ConstraintList()
     for eq in eqs:
         try:
-            Vars_Not_Found=add_Eq_In_STR(TBlock,eq) 
+            Vars_Not_Found=add_Eq_In_STR(TBlock,eq,DV=DV) 
             if len (Vars_Not_Found)==0:
                 Status.append(pd.DataFrame({'Obj':[TBlock.name],'Eq':[eq],'Status':['OK']}))
             else:
@@ -424,8 +456,8 @@ def add_Equestions(TBlock,eqs):
     return  pd.concat(Status)
             
 
-def add_ST_to_DF(DF_Eq):
-    # Добавление колонки Block_Stages
+def add_Block_Stages_to_DF(DF_Eq):
+    # Добавление колонки Block_Stages в DataFrame
     ST=[]
     for i in range(DF_Eq.shape[0]):
         if pd.isna(DF_Eq['Stages index'].iloc[i]):
@@ -447,10 +479,21 @@ def Dict_EQ(DF_Eq):
         else:
             Eq_dict[DF_Eq['Block_Stages'].iloc[i]]=[Eq]
     return Eq_dict
+    
+def her(m):
+    return True   
 
-#add_ST_to_DF(DF_Eq)    
-#DE=Dict_EQ(DF_Eq)
-#for k in DE.keys():
-#    Eq=DE[k]
-#    TBlock=BlockDict[k]
-#    add_Equestions1(TBlock,Eq)
+def add_Equestions_To_Objs(m,DF_Eq):
+    DE=Dict_EQ(DF_Eq)
+    print('Добавляемые уравнения в объекты:')
+    print(DE)
+    Status=[]
+    BlockDict=dict_blocks(m,max_count_point=1)
+    DV=dict_vars(m)
+    for k in DE.keys():
+        print('-----!!!!!!!!!!!!!!!   ',k,'        !!!!!!------')
+        Eq=DE[k]
+        TBlock=BlockDict[k]
+        Status.append(add_Equestions(TBlock,Eq,DV=DV))
+    Status=pd.concat(Status)    
+    return Status 
