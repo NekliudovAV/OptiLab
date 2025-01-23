@@ -1117,6 +1117,9 @@ def dict_blocks(m,max_count_point=0,rename_blocks=True):
     return Blocks      
     
 def get_block_name(Block_name):
-    s = re.findall(r"\[(.*?)\]", Block_name)
-    s = '.'.join(s)
+    if Block_name.count('[')>0:
+        s = re.findall(r"\[(.*?)\]", Block_name)
+        s = '.'.join(s)
+    else:
+        s = Block_name
     return s
