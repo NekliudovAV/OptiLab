@@ -32,7 +32,7 @@ def Prepare_Var(Value):
     if (Value is None) or (Value is np.NAN):        
         return None
     elif isinstance(Value,str): 
-        Value=Value.replace(',\n',',').replace(' ','')
+        Value=Value.replace('\n','').replace(',\n',',').replace(' ','').replace(', \n',',').replace("'",'')
         return Value.split(',')
     else:
         #print(type(Value))
@@ -248,7 +248,7 @@ def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
             
             if 'cMF[1]' not in list_constraint(m):
                 m.cMF=ConstraintList()
-                m.cMF.add(m_.MF==0)
+                m.cMF.add(m.MF==0)
                 m.cMF[1].deactivate()
 
             else:
@@ -265,20 +265,11 @@ def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
                 print(list_ovjective(m))
 
 
-        # Добавляем ограничения      
-        for v in m.component_data_objects(Var):
+        # Добавляем ограничения  
+        d_v=dict_vars(m)
+        for temp in d_v.keys():
             # Преобразуем имя оптимизационной переменной в имя показателя
-            
-            # Было: Turbine[T11].Vars[0,D0]
-            temp=v.name.replace('Vars[0,','').replace(']','').replace('[','') #Убираем Vars[0, ]
-            # Остаётся TurbineT11.D0
-            Types=['Turbine','Boiler']
-            for T in Types:
-                 temp=temp.replace(T,'') # Убиарем  Turbine
-                 #temp=temp.replace('Turbine','') # Убиарем  Turbine[        
-            # Остаётся T11.D0
-            
-            
+            v=d_v[temp]
             if temp in me:
                 # При найденых значениях вводим параметры с отклонениями
                 print(temp)
@@ -357,6 +348,21 @@ def calculate_(m,FData,calctype='Dmin'):
     res_out=pd.concat(temp)
     return res_out    
     
+def correct_varname(name):
+    # Скорректировать имена
+    name=name.replace('BoolVars[','')
+    name=name.replace('Vars[0,','').replace(']','')
+    name=name.replace('[','')
+    name=name.replace('Turbines','')
+    name=name.replace('Obj','')
+    name=name.replace('Turbine','')
+    name=name.replace('Boilers','')
+    name=name.replace('REU','')
+    name=name.replace('PVDPVD','PVD')
+    name=name.replace('Stages','')
+    name=name.replace("'",'')
+    return name    
+    
 def dict_vars(m,Stages=False,max_point=2):
     Vars={}
     if 'Stages' in m.name:
@@ -366,23 +372,29 @@ def dict_vars(m,Stages=False,max_point=2):
         name=Var1.name
         if ('Stages'not in name) or Stages:
             if name.count('.')<max_point:
-                name=name.replace('BoolVars[','')
-                name=name.replace('Vars[0,','').replace(']','')
-                name=name.replace('[','')
-                name=name.replace('Turbines','')
-                name=name.replace('Turbine','')
-                name=name.replace('Boilers','')
-                name=name.replace('REU','')
-                name=name.replace('PVDPVD','PVD')
-                name=name.replace('Stages','')
+                name=correct_varname(name)
                 Vars[name]=Var1
     return Vars 
+    
+
+
+def Block2Model(m_):
+    # Конвертация фрагмента модели в модель
+    # Block2Model
+    name=m_.name
+    name=correct_varname(name)
+    Blocks_={name:m_}
+    obj=ConcreteModel()
+    obj.Obj=get_Blocks(Blocks_,[name])
+    obj.t=[0]
+    obj.MF=Var()
+    return obj
 
 def add_Eq_In_STR(TBlock,eq,DV=None):
     BNAME=get_block_name(TBlock.name)
     if DV==None:
         DV={}
-    temp=dict_vars(TBlock)
+    temp=dict_vars(TBlock,max_point=3) # Допускаем, что локальные переменные могут содержать 1 '.'
     if len(BNAME)>0:
         temp=dict((key.replace('Stages','').replace(BNAME+'.',''), value) for (key, value) in temp.items())        
     DV={**DV,**temp}
