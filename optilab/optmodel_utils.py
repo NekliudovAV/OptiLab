@@ -285,13 +285,33 @@ def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
                             0/0
 
 
-        return m        
+        return m   
+
+def get_Vars_N_D0(obj):
+    DV=dict_vars(obj,Stages=True,max_point=3)
+    # Ищем вхождения N и D0
+    d={}
+    lengthN=100
+    lengthD0=100
+    for VarName in DV:
+        if 'N' in VarName and lengthN>len(VarName):
+            lengthN=len(VarName)
+            d['N']=DV[VarName]
+        if 'D0' in VarName and lengthD0>len(VarName):
+            lengthD0=len(VarName)
+            d['D0']=DV[VarName]
+    return d        
         
-def set_MF(m_,Type,accuracy_dh):  # Более корректная интерпретация
+def set_MF(m,Type,accuracy_dh):  # Более корректная интерпретация
     # Набросок определения целевой функции
-    # m_ - модель
+    # m - модель
     # Type - тип целевой функции
     # accuracy_dh - словарь с точностями измерителей и значениями приборов учёта
+
+    m_=m.clone()
+    # Определяем переменные с именами D0 и N
+    d=get_Vars_N_D0(m_)
+    
     t=0
     if 'cMF[1]' not in list_constraint(m_):
         m_.cMF=ConstraintList()
@@ -300,32 +320,44 @@ def set_MF(m_,Type,accuracy_dh):  # Более корректная интерп
     else:
         for i in m_.cMF.keys():
             m_.cMF[i].deactivate()
-    # Если 
+
     if 'SEAC' in Type:
         add_stat_data(m_,accuracy_dh) 
-    elif 'Dmin' in Type:
-        m_.cMF.add(m_.MF==m_.Vars[t,'D0'])#+
-                #((m.Neb[t,'D30_plus']+m.Neb[t,'D30_minus'])*1+
-                #(m.Neb[t,'D13_plus']+m.Neb[t,'D13_minus'])*1+
-                #(m.Neb[t,'D7l_plus']+m.Neb[t,'D7l_minus'])*0.7+
-                #(m.Neb[t,'D7r_plus']+m.Neb[t,'D7r_minus'])*0.7+
-                #(m.Neb[t,'D1_2_plus']+m.Neb[t,'D1_2_minus'])*0.5)*10)
-    elif 'Nmin' in Type:  
-        m_.cMF.add(m_.MF==m_.Vars[t,'D0'])    
-    elif 'Nmax' in Type:
-        m_.cMF.add(m_.MF==-m_.Vars[t,'D0'])
-    
-    if 'O' not in list_ovjective(m_):
-        print('-----------set m.O-------------')
-        print(list_ovjective(m_))
         m_.O = Objective(expr= m_.MF, sense=minimize)
+    elif 'Dmin' in Type:
+        m_.cMF.add(m_.MF==d['D0'])#m_.Vars[t,'D0'])
+        m_.O = Objective(expr= m_.MF, sense=minimize)
+    elif 'Dmax' in Type:
+        m_.cMF.add(m_.MF==d['D0'])#-m_.Vars[t,'D0'])
+        m_.O = Objective(expr= m_.MF, sense=maximize)
+    elif 'Nmin' in Type:  
+        m_.cMF.add(m_.MF==d['N'])#m_.Vars[t,'N'])    
+        m_.O = Objective(expr= m_.MF, sense=minimize)
+    elif 'Nmax' in Type:
+        m_.cMF.add(m_.MF==d['N'])#-m_.Vars[t,'N'])
+        m_.O = Objective(expr= m_.MF, sense=maximize)
+    return m_    
 
 def get_Blocks(Blocks,name):
     def get_block_(b,name):
         return Blocks[name].clone()
     return Block(name,rule=get_block_)        
    
-
+def fix_vars(obj,DF,hi=0):
+    # Фиксируем переменные
+    dictVars=dict_vars(obj,Stages=True,max_point=3)
+    keysDictVars=dictVars.keys()
+    keysDF=DF.keys()
+    if isinstance(hi,int):
+        iDF=DF.iloc[hi]
+    else:
+        iDF=DF.loc[hi]
+    for DFVar in keysDF:
+        if DFVar in keysDictVars:
+            value=iDF[DFVar]
+            print(f'fix {DFVar} :{value}')
+            dictVars[DFVar].fix(value)
+            
 # Выполнение расчёта для интервала времени
 def calculate_(m,FData,calctype='Dmin'):
     # Старт расчёта
@@ -376,7 +408,18 @@ def dict_vars(m,Stages=False,max_point=2):
                 Vars[name]=Var1
     return Vars 
     
-
+def vars_to_dataframe(m,Stages=False,max_point=2):
+    Vars={}
+    if 'Stages' in m.name:
+        max_point=max_point+1
+        Stages=True
+    for Var1 in m.component_data_objects(Var):
+        name=Var1.name
+        if ('Stages'not in name) or Stages:
+            if name.count('.')<max_point:
+                name=correct_varname(name)
+                Vars[name]=[Var1.value]
+    return pd.DataFrame(Vars)
 
 def Block2Model(m_):
     # Конвертация фрагмента модели в модель
