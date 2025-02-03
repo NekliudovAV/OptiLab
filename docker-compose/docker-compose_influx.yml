@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:1.8  # Используем образ InfluxDB 1.x
+    container_name: influxdb  # Имя контейнера
+    restart: always  # Автоматический перезапуск контейнера
+    ports:
+      - "8086:8086"  # Проброс порта InfluxDB на хост
+    environment:
+      - INFLUXDB_DB=mydb  # Создание базы данных
+      #- INFLUXDB_ADMIN_USER=admin  # Имя администратора
+      #- INFLUXDB_ADMIN_PASSWORD=admin123  # Пароль администратора
+    volumes:
+      - influxdb_data:/var/lib/influxdb  # Volume для хранения данных InfluxDB
+    networks:
+      - influxdb_network
+
+volumes:
+  influxdb_data:  # Имя volume для хранения данных
+
+networks:
+  influxdb_network:  # Создание сети для InfluxDB
