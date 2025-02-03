@@ -1,0 +1,42 @@
+version: '3.6'
+services:
+  gitlab-web:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    restart: always
+    hostname: '10.251.0.106'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://10.251.0.106:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2424
+    ports:
+      - '8929:8929'
+      - '443:443'
+      - '2424:22'
+    volumes:
+      - './gitlab/config:/etc/gitlab'
+      - './gitlab/logs:/var/log/gitlab'
+      - './gitlab/data:/var/opt/gitlab'
+    shm_size: '256m'
+    networks:
+      - gitlab-network
+      
+      
+  gitlab-runner1:
+    image: gitlab/gitlab-runner:alpine
+    restart: always
+    container_name: gitlab-runner1
+    hostname: gitlab-runner1
+    depends_on:
+      - gitlab-web
+    volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - ./runner/config:/etc/gitlab-runner
+        #- ./runner/mnt:/mnt
+        #- ./runner/home/gitlab-runner:/home/gitlab-runner 
+    networks:
+        - gitlab-network
+
+networks:
+  gitlab-network:
+    name: gitlab-network
