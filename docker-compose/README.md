@@ -1,5 +1,5 @@
 # Сохранение докер-контейнеров:
-1. docker commit runner1 runner_backup
+1. docker commit gitlab-runner1 runner_backup
 2. docker save -o runner.tar runner_backup
    
 4. docker commit gitlab gitlab_backup
