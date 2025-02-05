@@ -35,7 +35,7 @@
    ## Комманды для справки:
    Остановка gitlab: gitlab-ctl stop
    
-   Запуск gitlab: gitlab-ctl start
+   Запуск gitlab: gitlab-ctl start   
 
 # Контейнеры, которые должны быть загружены в Docker для старта CICD:
 
@@ -43,6 +43,17 @@
    
 2. kemgres_opt2:latest
 
+## Сохранение контейнеров:
+
+1. docker save -o docker.tar docker:dind
+
+2. docker save -o kemgres_opt2.tar kemgres_opt2:latest
+
+## Загрузка контейнеров:
+
+1. docker load < docker.tar
+   
+2. docker load < kemgres_opt2.tar
 
 # Сохранение докер-контейнеров:
 1. docker commit gitlab-runner1 runner_backup
