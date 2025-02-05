@@ -9,9 +9,10 @@ puma['min_threads'] = 1
 puma['max_threads'] = 4
 
 3. Перезапустить
-4. Можно отключить логирование prometheus, чтобы не разрастась папка data
-(2591 стоки)
-   prometheus_monitoring['enable'] = false
+4. Можно отключить логирование prometheus, чтобы не разрастась папка data: /etc/gitlab/gitlab.rb
+(2591 стока)
+
+   prometheus_monitoring['enable'] = False
 
 
 # Сохранение докер-контейнеров:
