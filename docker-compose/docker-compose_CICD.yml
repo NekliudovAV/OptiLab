@@ -17,7 +17,7 @@ services:
     volumes:
       - './gitlab/config:/etc/gitlab'
       - './gitlab/logs:/var/log/gitlab'
-      - './gitlab/data:/var/opt/gitlab'
+      #- './gitlab/data:/var/opt/gitlab'
       - './gitlab/backup:/var/opt/gitlab/backups'
     shm_size: '256m'
     networks:
