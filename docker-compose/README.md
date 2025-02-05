@@ -37,6 +37,12 @@
    
    Запуск gitlab: gitlab-ctl start
 
+# Контейнеры, которые должны быть загружены в Docker для старта CICD:
+
+1. docker:dind
+   
+2. kemgres_opt2:latest
+
 
 # Сохранение докер-контейнеров:
 1. docker commit gitlab-runner1 runner_backup
