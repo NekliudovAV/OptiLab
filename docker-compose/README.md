@@ -15,6 +15,23 @@
 
    prometheus_monitoring['enable'] = false
 
+5. Настройка автоматического бэкапирования:
+   apt-get update
+   apt-get install crontab (первый вызов)
+   или:
+   wget --no-check-certificate https://pypi.python.org/packages/47/c2/d048cbe358acd693b3ee4b330f79d836fb33b716bfaf888f764ee60aee65/crontab-0.20.tar.gz
+   
+   tar xvfz crontab-0.20.tar.gz
+   
+   cd crontab-0.20*
+   
+   python3 setup.py install
+   
+   
+   ## Комманды для справки:
+   gitlab-ctl stop
+   gitlab-ctl start
+
 
 # Сохранение докер-контейнеров:
 1. docker commit gitlab-runner1 runner_backup
@@ -43,22 +60,20 @@
 8. docker run -d --name influx -p 8086:8086 influx_backup:latest
 
 # BackUp Gitlab
-1. Остановка сервера:
-   gitlab-ctl stop
-2. Создани BackUp:
+1. Создани BackUp:
    gitlab-backup create
-3. Резервное копирование конфигурационных файлов:
+2. Резервное копирование конфигурационных файлов:
    sudo tar -czvf gitlab_config_backup_$(date +%F).tar.gz /etc/gitlab
-4. Проверка резервной копии:
+3. Проверка резервной копии:
    ls -l /var/opt/gitlab/backups
-5. Автоматизация резервного копирования:
+4. Автоматизация резервного копирования:
    Вы можете настроить автоматическое резервное копирование с помощью cron. Например, чтобы создавать резервную    копию каждый день в 2:00, добавьте задачу в cron:
    sudo crontab -e
    Добавьте строку:
    0 2 * * * /opt/gitlab/bin/gitlab-backup create
-6. Восстановление из резервной копии:
+5. Восстановление из резервной копии:
    sudo gitlab-backup restore BACKUP=название_резервной_копии
-7. Восстановление конфигурационных файлов:
+6. Восстановление конфигурационных файлов:
    sudo tar -xzvf gitlab_config_backup_дата.tar.gz -C /
-8. Перезапуск Gitlab:
+7. Перезапуск Gitlab:
    sudo gitlab-ctl restart
