@@ -41,20 +41,26 @@
 
 1. docker:dind
    
-2. kemgres_opt2:latest
+2. docker scip_pyomo_9_2
+   
+3. kemgres_opt2:latest
 
 ## Сохранение контейнеров:
 
 1. docker save -o docker.tar docker:dind
-
-2. docker save -o kemgres_opt2.tar kemgres_opt2:latest
+   
+2. docker save -o scip_pyomo9_2.tar scip_pyomo_9_2
+   
+3. docker save -o kemgres_opt2.tar kemgres_opt2:latest
 
 ## Загрузка контейнеров:
 
 1. docker load < docker.tar
    
 2. docker load < kemgres_opt2.tar
-
+   
+3. docker save -o scip_pyomo9_2.tar
+   
 # BackUp Gitlab
 1. Создани BackUp:
    gitlab-backup create
