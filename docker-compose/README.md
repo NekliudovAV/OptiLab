@@ -16,16 +16,20 @@
    prometheus_monitoring['enable'] = false
 
 5. Настройка автоматического бэкапирования:
+   
    apt-get update
+   
    apt-get install crontab (первый вызов)
-   или:
-   wget --no-check-certificate https://pypi.python.org/packages/47/c2/d048cbe358acd693b3ee4b330f79d836fb33b716bfaf888f764ee60aee65/crontab-0.20.tar.gz
    
-   tar xvfz crontab-0.20.tar.gz
+   Добавляем запись вызова:
+
+   /tmp/crontab.wRRRid/crontab
    
-   cd crontab-0.20*
-   
-   python3 setup.py install
+   (Каждый день в 11 чвасов выпоняется backup)
+
+   0 11 * * * /opt/gitlab/bin/gitlab-backup create
+
+   березагружаем docker
    
    
    ## Комманды для справки:
