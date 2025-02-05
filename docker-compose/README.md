@@ -43,22 +43,22 @@
 8. docker run -d --name influx -p 8086:8086 influx_backup:latest
 
 # BackUp Gitlab
-1. Остановка сервера
+1. Остановка сервера:
    gitlab-ctl stop
-2. Создани BackUp
+2. Создани BackUp:
    gitlab-backup create
-3. Резервное копирование конфигурационных файлов
+3. Резервное копирование конфигурационных файлов:
    sudo tar -czvf gitlab_config_backup_$(date +%F).tar.gz /etc/gitlab
-4. Проверка резервной копии
+4. Проверка резервной копии:
    ls -l /var/opt/gitlab/backups
-5. Автоматизация резервного копирования
+5. Автоматизация резервного копирования:
    Вы можете настроить автоматическое резервное копирование с помощью cron. Например, чтобы создавать резервную    копию каждый день в 2:00, добавьте задачу в cron:
    sudo crontab -e
    Добавьте строку:
    0 2 * * * /opt/gitlab/bin/gitlab-backup create
-6. Восстановление из резервной копии
+6. Восстановление из резервной копии:
    sudo gitlab-backup restore BACKUP=название_резервной_копии
 7. Восстановление конфигурационных файлов:
    sudo tar -xzvf gitlab_config_backup_дата.tar.gz -C /
-8. Перезапуск Gitlab
+8. Перезапуск Gitlab:
    sudo gitlab-ctl restart
