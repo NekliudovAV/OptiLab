@@ -33,8 +33,9 @@
    
    
    ## Комманды для справки:
-   gitlab-ctl stop
-   gitlab-ctl start
+   Остановка gitlab: gitlab-ctl stop
+   
+   Запуск gitlab: gitlab-ctl start
 
 
 # Сохранение докер-контейнеров:
