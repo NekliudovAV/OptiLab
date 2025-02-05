@@ -69,7 +69,7 @@
 
 ## Сбор сонтейнеров:
 
-docker-compose up -d
+docker-compose docker-compose_CICD.yml up -d
 
 ## Старт контейнеров (в ручную)
 
