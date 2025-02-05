@@ -113,7 +113,7 @@
 2. docker run -d --name runner runner_backup:latest
    
 3. docker load < gitlab.tar
-4. sudo docker run -d --name gitlab -p 8929:8929 -p 2424:22 -p 443:443 -v /home/master/gitlab_b/config:/etc/gitlab -v /home/master/gitlab_b/logs:/var/log/gitlab -v /home/master/gitlab_b/data:/var/opt/gitlab -v /home/master/gitlab_b/backup:/var/opt/backups gitlab_backup:latest
+4. sudo docker run -d --name gitlab -p 8929:8929 -p 2424:22 -p 443:443 -v /home/master/gitlab_b/config:/etc/gitlab -v /home/master/gitlab_b/logs:/var/log/gitlab -v /home/master/gitlab_b/data:/var/opt/gitlab -v /home/master/gitlab_b/backup:/var/opt/gitlab/backups gitlab_backup:latest
 
 
 6. docker load < mongo.tar
