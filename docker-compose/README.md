@@ -29,7 +29,7 @@
 
    0 11 * * * /opt/gitlab/bin/gitlab-backup create
 
-   березагружаем docker
+   перезагрузить gitlab
    
    
    ## Комманды для справки:
@@ -43,34 +43,35 @@
    
 2. docker scip_pyomo_9_2
    
-3. kemgres_opt2:latest
+3. gitlab-ce:latest
+
+4. gitlab-runner:alpine
 
 ## Сохранение контейнеров:
 
 1. docker save -o docker.tar docker:dind
    
 2. docker save -o scip_pyomo9_2.tar scip_pyomo_9_2
+    
+3. docker save -o runner.tar gitlab/gitlab-runner:alpine
    
-3. docker save -o kemgres_opt2.tar kemgres_opt2:latest
-   Скаченные образы
-   
-4. docker save -o runner.tar gitlab/gitlab-runner:alpine
-   
-5. docker save -o gitlab.tar gitlab/gitlab-ce:latest
+4. docker save -o gitlab.tar gitlab/gitlab-ce:latest
 
 ## Загрузка контейнеров:
 
 1. docker load < docker.tar
    
-2. docker load < kemgres_opt2.tar
-   
-3. docker load < scip_pyomo9_2.tar
+2. docker load < scip_pyomo9_2.tar
 
-4. docker load < runner.tar
+3. docker load < runner.tar
 
-5. docker load < gitlab.tar
+4. docker load < gitlab.tar
 
-## Старт контейнеров
+## Сбор сонтейнеров:
+
+docker-compose up -d
+
+## Старт контейнеров (в ручную)
 
 1. sudo docker run -d --name gitlab -p 8929:8929 -p 2424:22 -p 443:443 -v /home/master/gitlab/config:/etc/gitlab -v /home/master/gitlab/logs:/var/log/gitlab -v /home/master/gitlab/data:/var/opt/gitlab -v /home/master/gitlab/backup:/var/opt/backups gitlab/gitlab-ce:latest
    
@@ -79,7 +80,7 @@
 # BackUp Gitlab
 1. Создани BackUp:
    gitlab-backup create
-2. Резервное копирование конфигурационных файлов:
+2. Резервное копирование конфигурационных файлов (если требуется):
    sudo tar -czvf gitlab_config_backup_$(date +%F).tar.gz /etc/gitlab
 3. Проверка резервной копии:
    ls -l /var/opt/gitlab/backups
@@ -88,12 +89,26 @@
    sudo crontab -e
    Добавьте строку:
    0 2 * * * /opt/gitlab/bin/gitlab-backup create
-5. Восстановление из резервной копии:
-   sudo gitlab-backup restore BACKUP=название_резервной_копии
-6. Восстановление конфигурационных файлов:
+
+5. Заходим в образ    
+   sudo docker exec -ti gitlab_b /bin/bash
+
+6. Восстановление из резервной копии:
+   sudo gitlab-backup restore #(если восстановить не последнюю версию) BACKUP=название_резервной_копии
+
+7. Восстановление конфигурационных файлов (если требуется):
    sudo tar -xzvf gitlab_config_backup_дата.tar.gz -C /
-7. Перезапуск Gitlab:
+
+8. Копирвоание   
+
+   
+9. Восстановление образа
+   gitlab-backup restore
+
+10. Перезапуск Gitlab:
    sudo gitlab-ctl restart
+
+
 
 # Сохранение инфраструктурных докер-контейнеров:
 1. docker commit gitlab-runner1 runner_backup
