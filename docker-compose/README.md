@@ -55,7 +55,26 @@
    
 2. docker load < kemgres_opt2.tar
 
-# Сохранение докер-контейнеров:
+# BackUp Gitlab
+1. Создани BackUp:
+   gitlab-backup create
+2. Резервное копирование конфигурационных файлов:
+   sudo tar -czvf gitlab_config_backup_$(date +%F).tar.gz /etc/gitlab
+3. Проверка резервной копии:
+   ls -l /var/opt/gitlab/backups
+4. Автоматизация резервного копирования:
+   Вы можете настроить автоматическое резервное копирование с помощью cron. Например, чтобы создавать резервную    копию каждый день в 2:00, добавьте задачу в cron:
+   sudo crontab -e
+   Добавьте строку:
+   0 2 * * * /opt/gitlab/bin/gitlab-backup create
+5. Восстановление из резервной копии:
+   sudo gitlab-backup restore BACKUP=название_резервной_копии
+6. Восстановление конфигурационных файлов:
+   sudo tar -xzvf gitlab_config_backup_дата.tar.gz -C /
+7. Перезапуск Gitlab:
+   sudo gitlab-ctl restart
+
+# Сохранение инфраструктурных докер-контейнеров:
 1. docker commit gitlab-runner1 runner_backup
 2. docker save -o runner.tar runner_backup
    
@@ -81,21 +100,4 @@
 7. docker load < influx.tar
 8. docker run -d --name influx -p 8086:8086 influx_backup:latest
 
-# BackUp Gitlab
-1. Создани BackUp:
-   gitlab-backup create
-2. Резервное копирование конфигурационных файлов:
-   sudo tar -czvf gitlab_config_backup_$(date +%F).tar.gz /etc/gitlab
-3. Проверка резервной копии:
-   ls -l /var/opt/gitlab/backups
-4. Автоматизация резервного копирования:
-   Вы можете настроить автоматическое резервное копирование с помощью cron. Например, чтобы создавать резервную    копию каждый день в 2:00, добавьте задачу в cron:
-   sudo crontab -e
-   Добавьте строку:
-   0 2 * * * /opt/gitlab/bin/gitlab-backup create
-5. Восстановление из резервной копии:
-   sudo gitlab-backup restore BACKUP=название_резервной_копии
-6. Восстановление конфигурационных файлов:
-   sudo tar -xzvf gitlab_config_backup_дата.tar.gz -C /
-7. Перезапуск Gitlab:
-   sudo gitlab-ctl restart
+
