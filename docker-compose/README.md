@@ -1,7 +1,8 @@
 # Установка gitlab
 1. docker-compose up -d
 2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
-(1256-1258 строки)   
+(1256-1258 строки)
+
 puma['worker_processes'] = 2
 
 puma['min_threads'] = 1
@@ -12,7 +13,7 @@ puma['max_threads'] = 4
 4. Можно отключить логирование prometheus, чтобы не разрастась папка data: /etc/gitlab/gitlab.rb
 (2591 стока)
 
-   prometheus_monitoring['enable'] = False
+   prometheus_monitoring['enable'] = false
 
 
 # Сохранение докер-контейнеров:
