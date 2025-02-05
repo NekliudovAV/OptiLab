@@ -78,34 +78,44 @@ docker-compose up -d
 2. sudo docker run -d --name gitlab
    
 # BackUp Gitlab
+
+0. Заходим в образ
+   sudo docker exec -ti gitlab_b /bin/bash
+
 1. Создани BackUp:
    gitlab-backup create
+
 2. Резервное копирование конфигурационных файлов (если требуется):
    sudo tar -czvf gitlab_config_backup_$(date +%F).tar.gz /etc/gitlab
+
 3. Проверка резервной копии:
    ls -l /var/opt/gitlab/backups
+
 4. Автоматизация резервного копирования:
    Вы можете настроить автоматическое резервное копирование с помощью cron. Например, чтобы создавать резервную    копию каждый день в 2:00, добавьте задачу в cron:
    sudo crontab -e
    Добавьте строку:
    0 2 * * * /opt/gitlab/bin/gitlab-backup create
 
-5. Заходим в образ    
+5. Копируем в образ   
+   sudo docker cp 1738763953_2025_02_05_17.7.0_gitlab_backup.tar gitlab_b:/var/opt/gitlab/backups
+
+6. Заходим в образ    
    sudo docker exec -ti gitlab_b /bin/bash
 
-6. Восстановление из резервной копии:
+7. Восстановление из резервной копии:
    sudo gitlab-backup restore #(если восстановить не последнюю версию) BACKUP=название_резервной_копии
 
-7. Восстановление конфигурационных файлов (если требуется):
+8. Восстановление конфигурационных файлов (если требуется):
    sudo tar -xzvf gitlab_config_backup_дата.tar.gz -C /
 
-8. Копирвоание   
+9. Копирвоание   
 
    
-9. Восстановление образа
+10. Восстановление образа
    gitlab-backup restore
 
-10. Перезапуск Gitlab:
+11. Перезапуск Gitlab:
    sudo gitlab-ctl restart
 
 
