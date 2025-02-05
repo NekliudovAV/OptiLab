@@ -52,6 +52,11 @@
 2. docker save -o scip_pyomo9_2.tar scip_pyomo_9_2
    
 3. docker save -o kemgres_opt2.tar kemgres_opt2:latest
+   Скаченные образы
+   
+4. docker save -o runner.tar gitlab/gitlab-runner:alpine
+   
+5. docker save -o gitlab.tar gitlab/gitlab-ce:latest
 
 ## Загрузка контейнеров:
 
@@ -59,7 +64,11 @@
    
 2. docker load < kemgres_opt2.tar
    
-3. docker save -o scip_pyomo9_2.tar
+3. docker load < scip_pyomo9_2.tar
+
+4. docker load < runner.tar
+
+5. docker load < gitlab.tar
    
 # BackUp Gitlab
 1. Создани BackUp:
