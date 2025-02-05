@@ -1,3 +1,12 @@
+# Установка gitlab
+1. docker-compose up -d
+2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
+(1256-1258 строки)   
+puma['worker_processes'] = 2
+puma['min_threads'] = 1
+puma['max_threads'] = 4
+
+
 # Сохранение докер-контейнеров:
 1. docker commit gitlab-runner1 runner_backup
 2. docker save -o runner.tar runner_backup
