@@ -3,8 +3,15 @@
 2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
 (1256-1258 строки)   
 puma['worker_processes'] = 2
+
 puma['min_threads'] = 1
+
 puma['max_threads'] = 4
+
+3. Перезапустить
+4. Можно отключить логирование prometheus, чтобы не разрастась папка data
+(2591 стоки)
+   prometheus_monitoring['enable'] = false
 
 
 # Сохранение докер-контейнеров:
