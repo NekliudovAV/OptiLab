@@ -118,7 +118,7 @@ volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
 2. Добавить строчку
 pull_policy = "if-not-present" 
 
-## Старт контейнеров (в ручную)
+## Пример старта контейнера gitlab (в ручную)
 
 1. sudo docker run -d --name gitlab -p 8929:8929 -p 2424:22 -p 443:443 -v /home/master/gitlab/config:/etc/gitlab -v /home/master/gitlab/logs:/var/log/gitlab -v /home/master/gitlab/data:/var/opt/gitlab -v /home/master/gitlab/backup:/var/opt/backups gitlab/gitlab-ce:latest
    
@@ -182,33 +182,115 @@ pull_policy = "if-not-present"
     git push origin --all
 
 
+# Бэкапирование и восстановление баз данных
 
-
-# Сохранение инфраструктурных докер-контейнеров:
-1. docker commit gitlab-runner1 runner_backup
-2. docker save -o runner.tar runner_backup
+## Сохранение докер-контейнеров баз данный:
    
-4. docker commit gitlab gitlab_backup
-5. docker save -o gitlab.tar gitlab_backup
+1. docker commit mongo mongo_backup
+
+2. docker save -o mongo.tar mongo_backup
+
+3. docker commit influx influx_backup
+
+4. docker save -o influx.tar influx_backup
+
+## Загрузка докер-контейнеров:
    
-7. docker commit mongo mongo_backup
-8. docker save -o mongo.tar mongo_backup
+1. docker load < mongo.tar
 
-9. docker commit influx influx_backup
-10. docker save -o influx.tar influx_backup
+2. docker run -d --name mongo -p 27017:27017 mongo_backup:latest   
 
-# Загрузка докер-контейнеров:
-1. docker load < runner.tar
-2. docker run -d --name runner runner_backup:latest
+3. docker load < influx.tar
+
+4. docker run -d --name influx -p 8086:8086 influx_backup:latest
+
+## Бэкапирование и восстановление данных:
+
+## InfluxDB
+
+1. Заходим в контейнер
+
+docker exec -ti  influx88 /bin/bash
+
+2. Бэкапирование 
+
+influxd backup -portable /backup/influxdb1
+
+3. Запаковка
+
+tar -czvf  /backup/backup_2025_01_30.tar.gz -C /backup influxdb1
+
+4. Копирование на 10.16.0.157
+
+docker cp influx88:/backup/backup_2025_01_30.tar.gz  /home/master/
+
+5. Копирование на локальную машину
+
+   Использовать WinSCP
+6. копирование на докер-машину
+
+   mkdir backup
    
-3. docker load < gitlab.tar
-4. sudo docker run -d --name gitlab -p 8929:8929 -p 2424:22 -p 443:443 -v /home/master/gitlab_b/config:/etc/gitlab -v /home/master/gitlab_b/logs:/var/log/gitlab -v /home/master/gitlab_b/data:/var/opt/gitlab -v /home/master/gitlab_b/backup:/var/opt/gitlab/backups gitlab_backup:latest
+   docker cp /docker/BackUpImages/2025_01/influx_backup/backup_2025_01_30.tar.gz influxdb:/backup/backup_2025_01_30.tar.gz 
 
+7. Заходим в контейнер
 
-6. docker load < mongo.tar
-7. docker run -d --name mongo -p 27017:27017 mongo_backup:latest   
+   docker exec -ti  influxdb /bin/bash
+   
+8. распаковка
 
-8. docker load < influx.tar
-9. docker run -d --name influx -p 8086:8086 influx_backup:latest
+    tar -xzvf  /backup/backup_2025_01_30.tar.gz -C /backup/
 
+9. Восстановление базы
+    
+    influxd restore -portable /backup/influxdb1
+
+10. Удаление лишнего 
+
+    rm -r backup
+## Mongo
+
+1.Заходим в контейнер
+
+    docker exec -ti mongo  /bin/bash
+
+2. Устанавливается тулза
+
+    apt-get install mongodb-database-tool
+   
+3. Бэкапирование 
+
+    mongodump --uri="mongodb://mongo:mongo@localhost:27017" --out=/backup/mongodb
+   
+4. Формирование архива
+
+    tar -czvf  /backup/backup_mongo_2025_01_30.tar.gz -C /backup mongodb
+   
+5. Копирование на 10.16.0.157
+
+    docker cp mongo:/backup/backup_mongo_2025_01_30.tar.gz  /home/master/
+
+6. Копирование на локальную машину
+
+    Использовать WinSCP
+
+7. Создание папки
+
+   docker exec -ti mongodb mkdir backup
+
+8. Копирование на докер-машину
+   
+   docker cp /docker/BackUpImages/2025_01/mongo_backup/backup_mongo_2025_01_30.tar.gz mongodb:/backup/backup_mongo_2025_01_30.tar.gz
+
+9. Вход в контейнер
+    
+   docker exec -ti  mongodb /bin/bash
+
+10 Распаковка
+
+    tar -xzvf  /backup/backup_mongo_2025_01_30.tar.gz -C /backup/ 
+
+11 Восстановление базы
+
+    mongorestore --uri="mongodb://mongo:mongo@localhost:27017" /backup/mongodb
 
