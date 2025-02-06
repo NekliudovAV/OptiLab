@@ -10,6 +10,8 @@
 
 5. Выбрать и устоновать Ubuntu
 
+    [https://tretyakov.net/post/ustanovit-docker-na-windows-10-wsl2/?ysclid=m6tdd4d877367942673]
+
 # Используемые образы (Images):
 
 | №     | Контейнер | Описание |
@@ -27,7 +29,7 @@
 |6|	airflow	| Запуск задач по расписанию | 
 
    
-   [https://tretyakov.net/post/ustanovit-docker-na-windows-10-wsl2/?ysclid=m6tdd4d877367942673]
+  
 # Установка gitlab
 1. docker-compose up -d
 2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
