@@ -30,44 +30,8 @@
 
    
   
-# Установка gitlab
-1. docker-compose up -d
-2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
-(1256-1258 строки)
 
-   puma['worker_processes'] = 2
 
-   puma['min_threads'] = 1
-
-   puma['max_threads'] = 4
-
-3. Перезапустить
-4. Можно отключить логирование prometheus, чтобы не разрастась папка data: /etc/gitlab/gitlab.rb
-(2591 стока)
-
-   prometheus_monitoring['enable'] = false
-
-5. Настройка автоматического бэкапирования:
-   
-   apt-get update
-   
-   apt-get install crontab (первый вызов)
-   
-   Добавляем запись вызова:
-
-   /tmp/crontab.wRRRid/crontab
-   
-   (Каждый день в 11 чвасов выпоняется backup)
-
-   0 11 * * * /opt/gitlab/bin/gitlab-backup create
-
-   перезагрузить gitlab
-   
-   
-   ## Комманды для справки:
-   Остановка gitlab: gitlab-ctl stop
-   
-   Запуск gitlab: gitlab-ctl start   
 
 # Контейнеры, которые должны быть загружены в Docker для старта CICD:
 
@@ -78,6 +42,9 @@
 3. gitlab-ce:latest
 
 4. gitlab-runner:alpine
+   
+5. gitlab/gitlab-runner-helper:ubuntu-x86_64-v17.7.0
+
 
 ## Сохранение контейнеров:
 
@@ -89,6 +56,10 @@
    
 4. docker save -o gitlab.tar gitlab/gitlab-ce:latest
 
+5. docker pull gitlab/gitlab-runner-helper:ubuntu-x86_64-v17.7.0
+
+   docker save -o helper.tar gitlab/gitlab-runner-helper:ubuntu-x86_64-v17.7.0
+
 ## Загрузка контейнеров:
 
 1. docker load < docker.tar
@@ -98,10 +69,54 @@
 3. docker load < runner.tar
 
 4. docker load < gitlab.tar
+   
+5. docker load < helper.tar
 
-## Сбор сонтейнеров:
+# Установка gitlab
 
-docker-compose docker-compose_CICD.yml up -d
+1. docker-compose docker-compose_CICD.yml up -d
+
+2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
+(1256-1258 строки) Сократится используемая оперативная память
+
+   puma['worker_processes'] = 2
+
+   puma['min_threads'] = 1
+
+   puma['max_threads'] = 4
+
+3. Можно отключить логирование prometheus, чтобы не разрастась папка data: /etc/gitlab/gitlab.rb
+(2591 стока)
+
+   prometheus_monitoring['enable'] = false
+
+4. Настройка автоматического бэкапирования (ТРЕБУЕТСЯ ДОРАБОКА):
+   
+   apt-get update
+   
+   apt-get install crontab (первый вызов)
+   
+   Добавляем запись вызова:
+
+   /tmp/crontab.wRRRid/crontab
+   
+   (Каждый день в 11 чвасов выпоняется backup)
+
+   0 11 * * * /opt/gitlab/bin/gitlab-backup create  
+  
+   ## Комманды для справки:
+   Остановка gitlab: gitlab-ctl stop
+   
+   Запуск gitlab: gitlab-ctl start
+
+## Настройка Runner:
+
+1. Необходимо зайти в файл "/etc/gitlab-runner/config.toml" и поменять строчку
+volumes = ["/cache"] на
+volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+
+2. Добавить строчку
+pull_policy = "if-not-present" 
 
 ## Старт контейнеров (в ручную)
 
@@ -143,7 +158,7 @@ docker-compose docker-compose_CICD.yml up -d
 
 9. Копирвоание   
 
-   
+ 
 10. Восстановление образа
    gitlab-backup restore
 
