@@ -1,3 +1,16 @@
+# Подготовка WLSI win10
+
+1. dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+
+2. dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+
+3. Скачиваем и устанавливаем пакет обновления ядра Linux https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi
+
+4. wsl --set-default-version 2
+
+5. Выбрать и устоновать Ubuntu
+   
+   [https://tretyakov.net/post/ustanovit-docker-na-windows-10-wsl2/?ysclid=m6tdd4d877367942673]
 # Установка gitlab
 1. docker-compose up -d
 2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
