@@ -10,6 +10,10 @@ import config
 
 
 # mongo
+# 1. Записать датафрейм в монго
+# 2. Прочесть датафрейм из монго
+# 3. Получить список таблиц из монго
+
 def write_FD_2mongo(DFStages,Equipment='T3',Type='DFSt',IP=config.MONGO['IP_']):
         for k in DFStages.keys():
             if isinstance(DFStages[k],pd.DataFrame):
@@ -47,10 +51,13 @@ def list_database_names():
     client.close()
     return out
 
-# def add_database():
-# creates databases and collections automatically for you if they don't exist already. 
+
 
 # influx
+1. Создание таблицы
+2. Записать в таблицу (по умолчанию без тегов)
+3. Записать в таблицу результаты экспериментов (с тегами)
+
 # Создание новой БД
 def add_db(database='KEM_GRES'):
         from   influxdb import InfluxDBClient
