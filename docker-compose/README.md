@@ -2,9 +2,9 @@
 
 docker-compose -p "databases" -f=docker-compose_influx.yml up -d
 
-docker-compose -p "databases" -f=docker-compose_mongo up -d
+docker-compose -p "databases" -f=docker-compose_mongo.yml up -d
 
-docker-compose -p "databases" -f=docker-compose_postgress up -d
+docker-compose -p "databases" -f=docker-compose_postgress.yml up -d
 
 # Подготовка WLSI win10
 
