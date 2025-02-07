@@ -14,33 +14,53 @@ import config
 # 2. Прочесть датафрейм из монго
 # 3. Получить список таблиц из монго
 
-def write_FD_2mongo(DFStages,Equipment='T3',Type='DFSt',IP=config.MONGO['IP_']):
-        for k in DFStages.keys():
-            if isinstance(DFStages[k],pd.DataFrame):
-                DFStages[k]=DFStages[k].to_json()
-        dict2mongo = {'name':Equipment+'.'+Type,
-                      Type : DFStages}
-
+def mongo_db(IP=config.MONGO['IP_']):
         client = MongoClient(IP, config.MONGO['port_'],
                              username=config.MONGO['username_'],
                               password=config.MONGO['password_'])
         db = client[config.MONGO['DB_name']]
+        return db,client 
+
+def write_FD_2mongo(DFStages,Equipment='T3',Type=None,IP=config.MONGO['IP_']):
+        if not isinstance(DFStages,pd.DataFrame):
+            for k in DFStages.keys():
+                if isinstance(DFStages[k],pd.DataFrame):
+                    DFStages[k]=DFStages[k].to_json()    
+        else:    
+                DFStages=DFStages.to_json()
+            
+        if Type is None:
+            EquipmentName=Equipment
+        else:    
+            EquipmentName=Equipment+'.'+Type
+    
+        dict2mongo = {'name':EquipmentName,
+                      Type : DFStages}
+
+        db,client=mongo_db(IP=IP)
         posts = db.posts
         result = posts.insert_many([dict2mongo])
         client.close()
 
-def read_FD_from_mongo(Equipment='T3',Type='DFSt',IP=config.MONGO['IP_']):
-
-        client = MongoClient(IP, config.MONGO['port_'],
-                                  username=config.MONGO['username_'],
-                                  password=config.MONGO['password_'])
-        db = clientconfig.MONGO['DB_name']
+def read_FD_from_mongo(Equipment='T3',Type=None,IP=config.MONGO['IP_']):
+        db,client=mongo_db(IP=IP)
         posts = db.posts
-        result = list(posts.find({"name":Equipment+'.'+Type}))[-1]
+    
+        if Type is None:
+            EquipmentName=Equipment
+        else:    
+            EquipmentName=Equipment+'.'+Type
+            
+        result = list(posts.find({"name":EquipmentName}))[-1]
         client.close()
+        print(result)
+        
         DFStages={}
-        for key in result[Type].keys():
-            DFStages.update({key:pd.read_json(result[Type][key])})
+        if isinstance(result[Type],dict):
+            for key in result[Type].keys():
+                DFStages.update({key:pd.read_json(result[Type][key])})
+        else:
+            DFStages=pd.read_json(result[Type])
         return DFStages  
 
 def list_database_names():
