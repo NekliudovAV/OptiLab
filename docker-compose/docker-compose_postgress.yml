@@ -1,0 +1,23 @@
+# Postgres
+version: "3.9"
+services:
+  postgres:
+    image: postgres:14.8-alpine3.18
+    environment:
+      POSTGRES_DB: "test"
+      POSTGRES_USER: "postgre"
+      POSTGRES_PASSWORD: "postgre"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - ./init_database:/docker-entrypoint-initdb.d
+      - ./data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+      
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgre -d test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped   
