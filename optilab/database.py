@@ -51,6 +51,18 @@ def list_database_names():
 # creates databases and collections automatically for you if they don't exist already. 
 
 # influx
+# Создание новой БД
+def add_db(database='KEM_GRES'):
+        from   influxdb import InfluxDBClient
+        client = InfluxDBClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'])
+        db=client.get_list_database()
+        print(db)
+        if  database not in  [d['name'] for d in db]:
+            client.create_database(database)
+        else:
+            print('Указанная БД уже существует!')
+
+
 def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None, tags_=None):
     if database_ ==None:
             database_=config.INFLUX['DB_name']
