@@ -1,3 +1,11 @@
+# Пример сборки контейнероа
+
+docker-compose -p "databases" -f=docker-compose_influx.yml up -d
+
+docker-compose -p "databases" -f=docker-compose_mongo up -d
+
+docker-compose -p "databases" -f=docker-compose_postgress up -d
+
 # Подготовка WLSI win10
 
 1. dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
