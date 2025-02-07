@@ -1,4 +1,4 @@
-# Пример сборки контейнероа
+# Пример сборки контейнеров
 
 docker-compose -p "databases" -f=docker-compose_influx.yml up -d
 
