@@ -153,9 +153,13 @@ def read_DF_from_influxDB(host_ = None,
         timestamp_to=pd.Timestamp(timestamp_)
     else:
         timestamp_to=pd.Timestamp(timestamp_to)
-    
-    query=f"""select * from {table_} where time >= '{timestamp_}'  and time <= '{timestamp_to}' tz('{time_zone_}')"""
-    #print(query)
+    tags_c=''
+    if not tags_==None:
+        for k in tags_.keys():
+            tags_c=tags_c+(f" {k}='{str(tags_[k])}' and")
+        
+    query=f"""select * from {table_} where {tags_c}  time >= '{timestamp_}'  and time <= '{timestamp_to}' tz('{time_zone_}')"""
+    print(query)
     df = influxDataFrameClient_client.query(query)[table_]    
     df = df.tz_convert(time_zone_)
     
@@ -163,4 +167,3 @@ def read_DF_from_influxDB(host_ = None,
     dt = time.time() - t0
     print(f'Запрос на получение данных из {table_} c {timestamp_} по {timestamp_to}  выполнен за {dt: 3.3f} c')
     return df
-
