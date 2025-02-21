@@ -96,11 +96,17 @@ def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None
    
     influxDataFrameClient_client = DataFrameClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'], database=database_)
     influx_DBname = table_
-    influxDataFrameClient_client.write_points(resdf.astype(float), influx_DBname, tags=tags_, batch_size=1000)
+    resdf1=resdf[list(set(resdf.keys())-set(['TimeWrite2DB']))].astype(float)
+    if 'TimeWrite2DB' in resdf.keys():
+        resdf1['TimeWrite2DB']=resdf['TimeWrite2DB']
+    influxDataFrameClient_client.write_points(resdf1, influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
     return True
         
-def save_df_2_db(res2,table_='Optimize',database_='TES',Tag_Names=['Ni','Fleet', 'nBoilers']):
+def save_df_2_db(res2,table_='Optimize',database_=None,Tag_Names=['Ni','Fleet', 'nBoilers']):
+    if database_ ==None:
+            database_=config.INFLUX['DB_name']
+            
     Others=list(set(res2.keys())-set(Tag_Names))
     temp=res2[Tag_Names].drop_duplicates()
     print('Уникальные теги:',temp, 'количество уникальных сочетаний:', temp.shape[0])
@@ -160,10 +166,16 @@ def read_DF_from_influxDB(host_ = None,
         
     query=f"""select * from {table_} where {tags_c}  time >= '{timestamp_}'  and time <= '{timestamp_to}' tz('{time_zone_}')"""
     print(query)
-    df = influxDataFrameClient_client.query(query)[table_]    
-    df = df.tz_convert(time_zone_)
+    df = influxDataFrameClient_client.query(query)
+    if table_ in df.keys():
+        df=df[table_]        
+        df = df.tz_convert(time_zone_)
+    else:
+        print('Результат запроса - пустая таблица')
+        df =pd.DataFrame()
     
     influxDataFrameClient_client.close()
     dt = time.time() - t0
     print(f'Запрос на получение данных из {table_} c {timestamp_} по {timestamp_to}  выполнен за {dt: 3.3f} c')
     return df
+
