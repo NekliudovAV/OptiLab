@@ -21,26 +21,49 @@ def mongo_db(IP=config.MONGO['IP_']):
         db = client[config.MONGO['DB_name']]
         return db,client 
 
-def write_FD_2mongo(DFStages,Equipment='T3',Type=None,IP=config.MONGO['IP_']):
-        if not isinstance(DFStages,pd.DataFrame):
-            for k in DFStages.keys():
-                if isinstance(DFStages[k],pd.DataFrame):
-                    DFStages[k]=DFStages[k].to_json()    
-        else:    
-                DFStages=DFStages.to_json()
+def write_DF_2mongo(DFSt2,Equipment='TA3',Name='D0',Subsystem='St2',Model='Base',IP=None):
+        # 
+        if IP==None:
+            IP=config.MONGO['IP_']
             
-        if Type is None:
-            EquipmentName=Equipment
+        if isinstance(DFSt2,pd.DataFrame):
+            DFSt2=DFSt2.to_json()
         else:    
-            EquipmentName=Equipment+'.'+Type
-    
-        dict2mongo = {'name':EquipmentName,
-                      Type : DFStages}
+            for k in DFSt2.keys():
+                if isinstance(DFSt2[k],pd.DataFrame):
+                    DFSt2[k]=DFSt2[k].to_json()
+        name=Equipment            
+        if not Subsystem==None:
+            name=name+'.'+Subsystem
+        name=name+'.'+Name    
+        if not Model=='Base':
+            name=name+':'+Model
+            
+        dict2mongo = {'name':name,
+                      'Equipment':Equipment,
+                      'Subsystem': Subsystem,
+                      'Name':Name,
+                      'Model':Model,
+                      'Type': 'Curve',
+                      'DF' : DFSt2}
 
-        db,client=mongo_db(IP=IP)
+        client = MongoClient(IP, config.MONGO['port_'],
+                             username=config.MONGO['username_'],
+                              password=config.MONGO['password_'])
+        DB_Name=config.MONGO['DB_name']
+        db = client[DB_Name]
         posts = db.posts
         result = posts.insert_many([dict2mongo])
         client.close()
+
+def delete_from_mongo_by_name(name='TA3.St2.Qt:Test'):
+    db,client=mongo_db()
+    query={'name':name} 
+    posts = db.posts
+    result=posts.delete_many(query)
+    client.close()
+    print(f"Deleted {result.deleted_count} document(s).")
+    return True
 
 def read_FD_from_mongo(Equipment='T3',Type=None,IP=config.MONGO['IP_']):
         db,client=mongo_db(IP=IP)
@@ -70,8 +93,56 @@ def list_database_names():
     out=client.list_database_names(session=None, comment=None)
     client.close()
     return out
-
-
+    
+def get_list():
+    # Список всех записей
+        client = MongoClient(config.MONGO['IP_'], config.MONGO['port_'],
+                                  username=config.MONGO['username_'],
+                                  password=config.MONGO['password_'])
+        #db = client.KemGRES
+        DB_Name=config.MONGO['DB_name']
+        db = client[DB_Name]
+        
+        posts = db.posts
+        query = {}
+        projection = {"_id":1,"name":1,"Equipment":1,"Subsystem":1,"Name":1,"Model":1,"Type":1}
+        result = list(posts.find(query,projection))
+        
+        client.close()
+        dict_for_df=[]
+        for i in result:
+            temp=pd.DataFrame({k:[i[k]] for k in i.keys()})
+            dict_for_df.append(temp)
+        res=pd.concat(dict_for_df).reset_index(drop=True) 
+        res=res.iloc[res[['name','Equipment']].drop_duplicates().index].set_index('_id')
+        return res
+        
+def get_DF(Name='TA3.DFSt2',df=None):
+    client = MongoClient(config.MONGO['IP_'], config.MONGO['port_'],
+                                  username=config.MONGO['username_'],
+                                  password=config.MONGO['password_'])
+    db = client[config.MONGO['DB_name']]
+    posts = db.posts
+    
+    if isinstance(df,pd.DataFrame):
+        ID_=df.loc[Name][0]    
+        query = {"_id":ID_}
+    else:
+        query = {"name":Name}
+    projection = {"_id":0,"name":0}
+    result = list(posts.find(query,projection))
+    client.close()
+    result=result[-1]
+    
+    if 'DF' in result.keys(): 
+        DFSt2_=pd.read_json(result['DF'])
+    else:
+        Type=list(result.keys())[0]    
+        DFSt2_={}
+        for key in result[Type].keys():
+            DFSt2_.update({key:pd.read_json(result[Type][key])})
+    return DFSt2_
+    
 
 # influx
 # 1. Создание таблицы
@@ -88,7 +159,12 @@ def add_db(database='KEM_GRES'):
             client.create_database(database)
         else:
             print('Указанная БД уже существует!')
-
+            
+def drop_measurement(Name):
+    client = InfluxDBClient(host=config.INFLUX['IP_'], port=config.INFLUX['port_'],database=config.INFLUX['DB_name'])
+    client.drop_measurement(Name)
+    client.close()
+    
 
 def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None, tags_=None):
     if database_ ==None:
@@ -121,12 +197,12 @@ def save_df_2_db(res2,table_='Optimize',database_=None,Tag_Names=['Ni','Fleet', 
                     for t in tt.keys():
                         tags_[t]=str(tt[t])
                         if k==0:
-                            temp=res2[t]==tt[t]
+                            ftemp=res2[t]==tt[t]
                             k=k+1
                         else:
-                            temp=temp&(res2[t]==tt[t])
+                            ftemp=ftemp&(res2[t]==tt[t])
                 #print(tags_)
-                resdf=res2[Others][temp]    
+                resdf=res2[Others][ftemp]    
                 #print(resdf) # Для отладки
                 write_DF_2_influxDB(resdf,table_, database_,tags_=tags_)
 
