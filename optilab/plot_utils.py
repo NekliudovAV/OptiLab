@@ -55,7 +55,7 @@ def plor_diag_ras(DF_Fact,DF_Estiate,accuracy_dh):
 
 def plot_df(title_,dfI):
 # Отображение датафреймов    
-    dfI=df.copy()
+    dfI=dfI.copy()
     dfI_table=dfI.copy()
     # Корректируем размерность df для отображения:
     # Если параметр в колонке не менятеся, удаляем колонку
