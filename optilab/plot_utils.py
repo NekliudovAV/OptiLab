@@ -52,50 +52,46 @@ def plor_diag_ras(DF_Fact,DF_Estiate,accuracy_dh):
     #plt.tight_layout()
     plt.show()
 
-def get_simplexes(df_):
-    fig_ = go.Figure()
-    if isinstance(unit_specification['block_equations']['eq_Dpvd'],dict):
-        df_=pd.DataFrame(data=df_)
+
+def plot_df(title_,dfI):
+# Отображение датафреймов    
+    dfI=df.copy()
+    dfI_table=dfI.copy()
+    # Корректируем размерность df для отображения:
+    # Если параметр в колонке не менятеся, удаляем колонку
+    for k in dfI.keys():
+        if len(dfI[k].unique())==1:
+            dfI=dfI.drop(columns=[k])
+    #
     k=1.8
-    VarNames=list(df_.keys())
-    VarNames=VarNames[0:-1]
-
-    title_=VarNames[-1]
-
-    num_simp=0
-    for t in df_['simplex_numb'].values:
-        num_simp=max(num_simp,(max(t)))
-    sp=[[] for i in range(num_simp+1)]
-    i=0
+    VarNames=list(dfI.keys()) # формирование списка
     camera = dict(eye=dict(x=k, y=0.3, z=k)) # формирование словаря
-    for t in df_['simplex_numb'].values:
-        for t_ in t:
-            sp[t_].append(i)
-        #num_simp=max(num_simp,(max(t)))
-        i=i+1
+    # разбиваем графическую область на одну строку и дву колонки
     if len(VarNames)<3:    
         type_plot= 'scatter'
     else:
-        
         type_plot= 'surface'
+        
     fig = make_subplots(
-        rows=1, cols=2,specs=[[{'type': type_plot},{'type':'table'}]],figure=fig_)      
+        rows=1, cols=2,specs=[[{'type': type_plot},{'type':'table'}]])
 
-    for ind in sp:
-        #index=dindex # выбор индекса, соответствующего уникальному значению и выполнение среза
-        dfI=df_
-        index=ind
-        # создаем 3D объект на основе характеристик данных, полученных функцией и размещаем, созданный объект в первом столбце
-        if len(VarNames)<3:
-            fig.add_trace(go.Scatter(x=dfI[VarNames[-2]].iloc[index].values,y=dfI[VarNames[-1]].iloc[index].values,
+    # Отрисовка характеристики
+    # Выбор уникального значения по определенному параметру
+    if dfI.shape[1]>3:
+        for tDm in dfI[VarNames[-4]].unique():
+            index=dfI[VarNames[-4]]==tDm # выбор индекса, соответствующего уникальному значению и выполнение среза
+            # создаем 3D объект на основе характеристик данных, полученных функцией и размещаем, созданный объект в первом столбце
+            fig.add_trace(go.Mesh3d(x=dfI[VarNames[-3]][index],y=dfI[VarNames[-2]][index],z=dfI[VarNames[-1]][index],
+                                    colorscale="BuGn", opacity=0.9,hovertext=VarNames[0]+'='+str(tDm)),row=1, col=1)
+    elif dfI.shape[1]==3:
+            fig.add_trace(go.Mesh3d(x=dfI[VarNames[-3]],y=dfI[VarNames[-2]],z=dfI[VarNames[-1]],
+                                    colorscale="BuGn", opacity=0.9,hovertext=VarNames[0]+'='+str('')),row=1, col=1)
+    elif dfI.shape[1]<3:
+            fig.add_trace(go.Scatter(x=dfI[VarNames[-2]].values,y=dfI[VarNames[-1]].values,
                                       opacity=0.9,hovertext=VarNames[-1]),row=1,col=1)
-
-        else:
-            fig.add_trace(go.Mesh3d(x=dfI[VarNames[-3]].iloc[index],y=dfI[VarNames[-2]].iloc[index],z=dfI[VarNames[-1]].iloc[index],
-                                colorscale="BuGn", opacity=0.9,hovertext=VarNames[-1]),row=1, col=1)
-            #fig.update_xaxes(range=[dfI[VarNames[-2]].min(),dfI[VarNames[-2]].max])
-            #fig.update_yaxes(range=[dfI[VarNames[-1]].min(),dfI[VarNames[-1]].max]) 
-    if len(VarNames)<3:
+        
+            
+    if dfI.shape[1]<3:
         fig.update_layout(scene = dict(
                         xaxis_title=VarNames[-2],
                         yaxis_title=VarNames[-1]),showlegend = True,
@@ -106,40 +102,11 @@ def get_simplexes(df_):
                         yaxis_title=VarNames[-2],
                         zaxis_title=VarNames[-1]),showlegend = True,
                      scene_camera=camera,width=1000,height=600,title=title_)    
-    dfI_=dfI.round(2)
-    fig.add_trace(go.Table(
-        header=dict(values=list(dfI_.columns), align='left'),
-        cells=dict(values=dfI_.values.transpose(), align='left')),
-                  row=1, col=2)
-    #fig.show()
-    return fig#None
-
-def plot_df(title_,dfI):
-    k=1.8
-    VarNames=list(dfI.keys()) # формирование списка
-    camera = dict(eye=dict(x=k, y=0.3, z=k)) # формирование словаря
-    # разбиваем графическую область на одну строку и дву колонки
-    fig = make_subplots(
-        rows=1, cols=2,specs=[[{'type': 'surface'},{'type':'table'}]])
-
-    # Отрисовка характеристики
-    # Выбор уникального значения по определенному параметру
-    for tDm in dfI[VarNames[-4]].unique():
-        index=dfI[VarNames[-4]]==tDm # выбор индекса, соответствующего уникальному значению и выполнение среза
-        # создаем 3D объект на основе характеристик данных, полученных функцией и размещаем, созданный объект в первом столбце
-        fig.add_trace(go.Mesh3d(x=dfI[VarNames[-3]][index],y=dfI[VarNames[-2]][index],z=dfI[VarNames[-1]][index],
-                                colorscale="BuGn", opacity=0.9,hovertext=VarNames[0]+'='+str(tDm)),row=1, col=1)
-    # добавление подписей параметров на каждой оси и расположение камеры
-    fig.update_layout(scene = dict(
-                        xaxis_title=VarNames[-3],
-                        yaxis_title=VarNames[-2],
-                        zaxis_title=VarNames[-1]),showlegend = True,
-                     scene_camera=camera,width=1000,height=600,title=title_)
-
+        
     # Отрисовка таблицы
     fig.add_trace(go.Table(
-        header=dict(values=list(dfI.columns), align='left'),
-        cells=dict(values=dfI.values.transpose(), align='left')),
+        header=dict(values=list(dfI_table.columns), align='left'),
+        cells=dict(values=dfI_table.values.transpose(), align='left')),
                   row=1, col=2)
     #fig.show()
     return fig
