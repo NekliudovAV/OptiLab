@@ -110,3 +110,41 @@ def plot_df(title_,dfI):
                   row=1, col=2)
     #fig.show()
     return fig
+
+def sort_columns_by_uvalues(Qt):
+    df={}
+    for k in Qt.keys():
+        df[k]=[len(Qt[k].unique())]
+    df=pd.DataFrame(df).transpose()
+    return Qt[list(df.sort_values(by=[0]).index)]
+
+def slice_(Qt,fix_values=None):
+    if fix_values==None:
+        Fixed_fils=['H0','T0','P0', 'Dd','P2','IWF','dGfwD0','Dsp','IDsp','Pmix']
+        fix_values=set(Fixed_fils).intersection(Qt.keys())
+
+    F=[Qt.keys()[-1]]
+    lm = LinearRegression()
+    lm.fit(Qt.iloc[:,:-1],Qt.iloc[:,-1])
+    # Расчёт погрешности:
+    Fit=lm.predict(Qt.iloc[:,:-1])
+    print('Погрешность slice-ера, %',((Qt.iloc[:,-1]-Fit)/Qt.iloc[:,-1]).abs().mean())
+    
+    Data=Qt.copy()
+    for k in fix_values:
+        Data[k]=Data[k][Data[k]!=0].mean()
+    t=(set(Data.keys())-set(fix_values))-set(F) 
+    t=list(t)
+    t.extend(F)
+
+    Keys=list(Data.keys())
+    Fit=lm.predict(Data[Keys[:-1]])
+    Data[Keys[-1]]=Fit
+    Data=Data.sort_values(by=F)
+    return Data
+
+def plot_df_dim(df,fix_values=None,Name=''):
+    if df.shape[1]>4:
+        df=slice_(df,fix_values=None)
+    df=sort_columns_by_uvalues(df)
+    return plot_df(f'Харакетристика:{Name}',df)
