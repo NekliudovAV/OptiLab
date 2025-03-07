@@ -2,6 +2,7 @@ import pandas as pd
 import time
 from pymongo import MongoClient
 from influxdb import DataFrameClient
+from json_convertor import *
 
 import config
 # Пример содержания config.py
@@ -20,18 +21,23 @@ def mongo_db(IP=config.MONGO['IP_']):
                               password=config.MONGO['password_'])
         db = client[config.MONGO['DB_name']]
         return db,client 
+        
+
 
 def write_DF_2mongo(DFSt2,Equipment='TA3',Name='D0',Subsystem='St2',Model='Base',IP=None):
         # 
         if IP==None:
             IP=config.MONGO['IP_']
             
-        if isinstance(DFSt2,pd.DataFrame):
-            DFSt2=DFSt2.to_json()
-        else:    
-            for k in DFSt2.keys():
-                if isinstance(DFSt2[k],pd.DataFrame):
-                    DFSt2[k]=DFSt2[k].to_json()
+        DFSt2=convert2jsonMongo(DFSt2)
+        
+        #if isinstance(DFSt2,pd.DataFrame):
+        #    DFSt2=DFSt2.to_json()
+        #else:    
+        #    for k in DFSt2.keys():
+        #        if isinstance(DFSt2[k],pd.DataFrame):
+        #            DFSt2[k]=DFSt2[k].to_json()
+        
         name=Equipment            
         if not Subsystem==None:
             name=name+'.'+Subsystem
@@ -78,12 +84,14 @@ def read_FD_from_mongo(Equipment='T3',Type=None,IP=config.MONGO['IP_']):
         client.close()
         print(result)
         
-        DFStages={}
-        if isinstance(result[Type],dict):
-            for key in result[Type].keys():
-                DFStages.update({key:pd.read_json(result[Type][key])})
-        else:
-            DFStages=pd.read_json(result[Type])
+        DFStages=onvertMongoJson2DF(result[Type])
+        
+        #DFStages={}
+        #if isinstance(result[Type],dict):
+        #    for key in result[Type].keys():
+        #        DFStages.update({key:pd.read_json(result[Type][key])})
+        #else:
+        #    DFStages=pd.read_json(result[Type])
         return DFStages  
 
 def list_database_names():
@@ -94,7 +102,7 @@ def list_database_names():
     client.close()
     return out
     
-def get_list():
+def get_list(Tags=None):
     # Список всех записей
         client = MongoClient(config.MONGO['IP_'], config.MONGO['port_'],
                                   username=config.MONGO['username_'],
@@ -104,7 +112,10 @@ def get_list():
         db = client[DB_Name]
         
         posts = db.posts
-        query = {}
+        if Tags ==None:
+            query = {}
+        else:
+            query = Tags
         projection = {"_id":1,"name":1,"Equipment":1,"Subsystem":1,"Name":1,"Model":1,"Type":1}
         result = list(posts.find(query,projection))
         
@@ -114,7 +125,10 @@ def get_list():
             temp=pd.DataFrame({k:[i[k]] for k in i.keys()})
             dict_for_df.append(temp)
         res=pd.concat(dict_for_df).reset_index(drop=True) 
-        res=res.iloc[res[['name','Equipment']].drop_duplicates().index].set_index('_id')
+        if 'Equipment' in res.keys():
+            res=res.iloc[res[['name','Equipment']].drop_duplicates().index].set_index('_id')
+        else:
+            res=res.iloc[res[['name']].drop_duplicates().index].set_index('_id')        
         return res
         
 def get_DF(Name='TA3.DFSt2',df=None):
@@ -255,3 +269,20 @@ def read_DF_from_influxDB(host_ = None,
     print(f'Запрос на получение данных из {table_} c {timestamp_} по {timestamp_to}  выполнен за {dt: 3.3f} c')
     return df
 
+def read_DF_from_influxDB_unstack(host_ = None,
+                          port_ = None,
+                          database_ = None,
+                          table_ = None,
+                          timestamp_ = None,
+                          timestamp_to = None,
+                          time_zone_ = None,
+                          tags_ = None):
+    """
+    Запрос из БД InfluxDB предрасчетный параметров 
+    Возвращает dataframe с предрасчетными параметрами
+    """
+    out_=read_DF_from_influxDB(host_ = host_,port_ = port_,database_ = database_,table_ = table_,timestamp_ = timestamp_,timestamp_to = timestamp_to,time_zone_ = time_zone_,tags_ = tags_)
+    if 'value' in out_.keys() and 'name' in out_.keys():
+        out_=out_[['name','value']].reset_index().set_index(['index','name']).unstack()
+        out_.columns=out_.columns.droplevel()
+    return out_
