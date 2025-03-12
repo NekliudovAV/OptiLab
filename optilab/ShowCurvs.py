@@ -3,7 +3,7 @@ import plotly.express as px
 import pandas as pd
 
 from database import *
-from show_Df import *
+from prepare_curvs import *
 
 DFList=get_list()
 keys=list(DFList['name'][pd.notna(DFList['Equipment'])].values)
