@@ -10,6 +10,9 @@ download file scip:
 
 https://github.com/scipopt/scip/releases
 
+build image scip_pyomo_9_2
+
+docker build -t scip_pyomo_9_2 -f Dockerfile_scip_pyomo9_2.tt .
 
 
 # Подготовка WLSI win10
