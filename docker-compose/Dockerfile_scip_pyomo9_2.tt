@@ -23,7 +23,7 @@ RUN apt-get install libtbb-dev -y
 RUN apt-get install -y iputils-ping
 #RUN apt-get install libc6
 #RUN apt-get -y install automake autoconf libtool
-RUN dpkg -i SCIPOptSuite-9.1.0-Linux-ubuntu22.deb
+RUN dpkg -i SCIPOptSuite-9.2.1-Linux-ubuntu22.deb
 
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org seuif97==1.2.0
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org influxdb==5.3.1
