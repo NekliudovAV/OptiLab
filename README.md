@@ -5,7 +5,7 @@ Downkoad Optilab:
 
 git clone https://github.com/NekliudovAV/OptiLab.git
 
-# Настройка баз данных для запуска примеров: 
+# Установка баз данных для запуска примеров в Docker: 
 
 cd docker-compose
 
