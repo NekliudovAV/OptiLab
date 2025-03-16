@@ -1,0 +1,39 @@
+# Добавлен ping для тестирования сети
+# требуется установленный git
+FROM python:3.10
+
+RUN apt-get update
+RUN apt install -y git
+RUN apt-get -y install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev liblapack-dev
+RUN apt-get -y install automake autoconf libtool
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip
+
+# https://www.scipopt.org/download.php?fname=SCIPOptSuite-9.1.0-Linux-ubuntu22.deb
+COPY SCIPOptSuite-9.1.0-Linux-ubuntu22.deb /
+RUN apt-get install libcliquer1
+RUN apt-get install libopenblas-dev -y
+RUN apt-get install libtbb-dev -y
+RUN apt-get install -y iputils-ping
+RUN dpkg -i SCIPOptSuite-9.1.0-Linux-ubuntu22.deb
+
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org seuif97==1.2.0
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org influxdb==5.3.1
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pymongo==4.3.3
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org requests-ntlm==1.2.0
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org openpyxl==3.1.2
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pyomo==6.6.1
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org numpy==1.23.3
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pandas==1.5.0
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org psycopg2-binary==2.9.9
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org sqlalchemy==2.0.31
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org dill==0.3.8
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org scikit-learn==1.5.1
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org numpy==1.23.3
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org fastapi==0.111.1
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org uvicorn==0.30.1
+RUN pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org nose
+RUN git config --global http.sslverify "false"
+RUN apt-get install ca-certificates
+RUN pip install git+https://github.com/NekliudovAV/Optilab
+
+#docker build -t scip_pyomo_9_1 -f Dockerfile_scip_pyomo9_1.tt .
