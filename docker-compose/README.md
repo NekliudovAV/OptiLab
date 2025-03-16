@@ -6,6 +6,12 @@ docker-compose -p "databases" -f=docker-compose_mongo.yml up -d
 
 docker-compose -p "databases" -f=docker-compose_postgress.yml up -d
 
+download file scip:
+
+https://github.com/scipopt/scip/releases
+
+
+
 # Подготовка WLSI win10
 
 1. dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
