@@ -6,13 +6,15 @@ docker-compose -p "databases" -f=docker-compose_mongo.yml up -d
 
 docker-compose -p "databases" -f=docker-compose_postgress.yml up -d
 
-download file scip:
+download file scip in current folder and correct filename in tt instructions (Dockerfile_scip_pyomo9_2.tt):
 
-https://github.com/scipopt/scip/releases
-
-build image scip_pyomo_9_2
+ https://github.com/scipopt/scip/releases
 
 docker build -t scip_pyomo_9_2 -f Dockerfile_scip_pyomo9_2.tt .
+
+docker build -t jupyter -f Jupyter.tt .
+
+docker run -p 8888:8888 jupyter
 
 
 # Подготовка WLSI win10
