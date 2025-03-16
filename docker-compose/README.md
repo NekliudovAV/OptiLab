@@ -14,7 +14,7 @@ docker build -t scip_pyomo_9_2 -f Dockerfile_scip_pyomo9_2.tt .
 
 docker build -t jupyter -f Jupyter.tt .
 
-docker run -p 8888:8888 jupyter
+docker run -p 8888:8888 jupyter -d
 
 
 # Подготовка WLSI win10
