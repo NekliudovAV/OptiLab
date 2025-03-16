@@ -11,8 +11,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 #RUN apt-get -y install pip
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip
 
-
+# Download SCIPOptSuite-9.1.0-Linux-ubuntu22.deb to current folder from 
 # https://www.scipopt.org/download.php?fname=SCIPOptSuite-9.1.0-Linux-ubuntu22.deb
+# or
+# https://github.com/scipopt/scip/releases
+# Please, correct name file if it need in next line
 COPY SCIPOptSuite-9.1.0-Linux-ubuntu22.deb /
 RUN apt-get install libcliquer1
 RUN apt-get install libopenblas-dev -y
