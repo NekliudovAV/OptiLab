@@ -192,6 +192,23 @@ def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None
     influxDataFrameClient_client.write_points(resdf1, influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
     return True
+
+def save_df2influx(df,table_,Station,Equipment='All',TypeCalc="calc", Scenario="Base",Model="Base",Version='1'):
+    Tag_Names=['Station','Equipment','TypeCalc','Scenario','Model','Version']
+    df_keys=df.keys()
+    if 'Station' not in df_keys:
+        df['Station']=Station
+    if 'Equipment' not in df_keys:
+        df['Equipment']=Equipment
+    if 'TypeCalc' not in df_keys:
+        df['TypeCalc']=TypeCalc
+    if 'Scenario' not in df_keys:
+        df['Scenario']=Scenario
+    if 'Model' not in df_keys:
+        df['Model']=Model
+    if 'Version' not in df_keys:
+        df['Version']=Version
+    save_df_2_db(df,table_=table_,database_=None,Tag_Names=Tag_Names)        
         
 def save_df_2_db(res2,table_='Optimize',database_=None,Tag_Names=['Ni','Fleet', 'nBoilers']):
     if database_ ==None:
@@ -219,6 +236,25 @@ def save_df_2_db(res2,table_='Optimize',database_=None,Tag_Names=['Ni','Fleet', 
                 resdf=res2[Others][ftemp]    
                 #print(resdf) # Для отладки
                 write_DF_2_influxDB(resdf,table_, database_,tags_=tags_)
+
+def read_influx(date,table_,Station,date_to=None,Equipment='All',TypeCalc="calc", Scenario="Base",Model="Base",Version='1'):
+    Tags={}
+    if not Station==None:
+        Tags['Station']=Station
+    if not Equipment==None:
+        Tags['Equipment']=Equipment
+    if not TypeCalc==None:        
+        Tags['TypeCalc']=TypeCalc
+    if not Scenario==None:    
+        Tags['Scenario']=Scenario
+    if not Model==None:    
+        Tags['Model']=Model
+    if not Version==None:
+        Tags['Version']=Version
+    if date_to==None:
+        date_to=date
+    
+    return read_DF_from_influxDB(table_=table_,timestamp_=date,timestamp_to=date_to,tags_=Tags)
 
 def read_DF_from_influxDB(host_ = None,
                           port_ = None,
