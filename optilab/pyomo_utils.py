@@ -13,7 +13,7 @@ def list_constraint(m):
         Vars.append(Var1.name)
     return Vars   
     
-# Список целефых функций
+# Список целевых функций
 def list_ovjective(m):
     Vars=[]
     for Var1 in m.component_data_objects(Objective):
@@ -26,6 +26,35 @@ def list_vars(m):
     for Var1 in m.component_data_objects(Var):
         Vars.append(Var1.name)
     return Vars   
+    
+def correct_var_name(name):
+    name=name.replace('BoolVars[','')
+    if 'Var' in name:
+        tempName=name.split(',')
+        if len(tempName)>1:
+            name=tempName[1].replace(']','')
+        #else:   
+    #name=name.replace('Vars[0,','').replace(']','')
+    name=name.replace('[','')
+    name=name.replace('Turbines','')
+    name=name.replace('Turbine','')
+    name=name.replace('Boilers','')
+    name=name.replace('REU','')
+    return name        
+    
+def list_model_vars(m,Stages=False):
+    Vars=[]
+    max_point=2
+    if 'Stages' in m.name:
+        max_point=3
+        Stages=True
+    for Var1 in m.component_data_objects(Var):
+        name=Var1.name
+        if ('Stages'not in name) or Stages:
+            if name.count('.')<max_point:
+                name=correct_var_name(name)
+                Vars.append(name)
+    return Vars     
     
 # Формирование отчёта
 def gen_report(m):
@@ -58,6 +87,12 @@ def gen_report(m):
                     t_=0
                     DF.at[t_, v.name] = value                     
         return DF
+        
+# Фильтрация имён
+def gen_report2(m):
+    res=gen_report(m).iloc[0:1]
+    res2=res[[i  for i in res.keys() if (not 'quad' in i) and (not 'res2' in i)]]
+    return res2.rename(columns={i:i.replace('SVar.','').replace('Vars.','').replace('residual.','r.') for i in res2.keys()})       
         
 #Сохранение модели в файл
 def save_pyomo_model(model,filename):
