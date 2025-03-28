@@ -7,8 +7,9 @@ from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import numpy as np
 import inspect
-
+from optmodel_utils import get_sigma_U
 import json
+
 # Необходимо подготовить функицию, демонстрирующую характеристики оборудования:
 import plotly.graph_objects as go # импортируем библиотеку graph_objects для 3D отображения
 from plotly.subplots import make_subplots # подключаем возможность разбиения блока на два блока
@@ -38,7 +39,23 @@ def plot_dr(ax,DF_Fact,DF_Estiate,Name='D0',ci=0.2,color='green'):
     ax.set_title('Диаграмма рассеивания '+Name)
     ax.legend()
 
-def plor_diag_ras(DF_Fact,DF_Estiate,accuracy_dh):
+def plor_diag_ras(DF_Fact,DF_Estiate,accuracy_dh=None):
+    # Диаграмма рассеивания. 
+    
+    # Добавлены проверки на исходные данные
+    if accuracy_dh==None:
+        accuracy_dh=get_sigma_U(DF_Estiate)
+        
+    # Определяем столбцы, которые присутствую в данных и в результатах
+    res_keys=DF_Estiate.keys()
+    df_keys=DF_Fact.keys()
+    columns=list(set(res_keys).intersection(df_keys))
+    DF_Fact=DF_Fact[columns]
+    DF_Estiate=DF_Estiate[columns]
+    
+    # Выбираем только те интервалы времени, по которым расчёты успешно завершились
+    DF_Fact=DF_Fact.loc[DF_Estiate.index]
+    
     n=DF_Fact.shape[1]
     ny=int(np.fix((n+1)/2))
     fig, axs = plt.subplots(ny, 2, figsize=(10, ny*5))
