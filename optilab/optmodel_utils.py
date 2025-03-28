@@ -1,20 +1,25 @@
 import numpy as np
-import pandas as pd
+from tqdm import tqdm_notebook as tqdm
+from joblib import Parallel, delayed, cpu_count
 from pyomo.environ import *
 from df2block import *
-from pyomo_utils import list_constraint,list_ovjective,gen_report
+from pyomo_utils import list_constraint,list_ovjective,gen_report,gen_report2
 from pyomo.environ import *
 from sympy import symbols, sympify, parse_expr
 
 # Для стандартизации расчётной модели удобнее вынести управление генерации оптимизационной модели в таблшичный файл
 # Представленный ниже код помогнает реализовать эту идею
 
-def select_DF(Data,DF_keys):
+def select_DF(Curvs,DF_keys):
     # Получение DataFrame из "Иерархического" словаря по ключу DF_keys
     if (DF_keys is None) or (DF_keys is np.NAN):        
         return None
+        
+    if DF_keys in Curvs.keys():
+        return Curvs[DF_keys]
+    
     DF_keys=DF_keys.split('.')
-    Temp=Data
+    Temp=Curvs
    
     for i in range(len(DF_keys)):
         if DF_keys[i] in Temp.keys():
@@ -31,8 +36,7 @@ def Prepare_Var(Value):
     # Преобразование Str в список. Запятые являются разделителями
     if (Value is None) or (Value is np.NAN):        
         return None
-    elif isinstance(Value,str): 
-        Value=Value.replace('\n','').replace(',\n',',').replace(' ','').replace(', \n',',').replace("'",'')
+    elif isinstance(Value,str):        
         return Value.split(',')
     else:
         #print(type(Value))
@@ -42,32 +46,32 @@ def add_Lims_2Model(m,Lims):
     # Добавление ограничений на переменные
     # m оптимизационная модель
     # Lims ограничения
-    DV=dict_vars(m,Stages=True,max_point=3)
     for i in range(Lims.shape[0]):
         Temp=Lims.iloc[i]
         # Добавляем Max
-        VarName=Temp.Obj+'.'+Temp.Var
-        if VarName in DV.keys():
-                if not (Temp.Max is np.NAN): 
-                     DV[VarName].setub(Temp.Max)
-                if not (Temp.Min is np.NAN): 
-                    DV[VarName].setlb(Temp.Min)
-                print(DV[VarName].name,'lb:',Temp.Min,' ub:',Temp.Max)
+        if Temp.Var in m.Turbine[Temp.Obj].VarNames:
+            if not (Temp.Max is np.NAN): 
+                m.Turbine[Temp.Obj].Vars[0,Temp.Var].setub(Temp.Max)
+            if not (Temp.Min is np.NAN): 
+                m.Turbine[Temp.Obj].Vars[0,Temp.Var].setlb(Temp.Min)
+            print(m.Turbine[Temp.Obj].Vars[0,Temp.Var].name,'lb:',Temp.Min,' ub:',Temp.Max)
         else: 
-            print ('!!!!! Ошибка в имени переменной',VarName,'!!!!')  
+                print ('Ошибка в имени переменной',Temp.Var,'! Определены:', m.Turbine[Temp.Obj].VarNames)     
 
-def create_Blocks(Data,DF_Objects):
-    # Data словарь с харакетристиками
+def create_Blocks(Curvs,DF_Objects):
+    # Curvs словарь с харакетристиками
     # DF_Objects правила формирования блоков модели
     # Формирование блоков для модели
     t=range(1)
     Blocks={}
     for i in range(DF_Objects.shape[0]):
         TD=DF_Objects.iloc[i]
+        print('-------',TD['Name'],'-------')
         varargs={}
         for tk in TD.keys():
+            
             if tk in ['DF']:
-                DF=select_DF(Data,TD.DF)
+                DF=select_DF(Curvs,TD.DF)
             elif tk in['func']:    
                 func=TD['func']
             elif tk in['Name']:
@@ -106,14 +110,11 @@ def create_Blocks(Data,DF_Objects):
             varargs.pop('Obj')
             varargs.pop('block')
             B=N_Stages(t,*block,**varargs)
-        elif func in ['Block_Off_State']: 
-            if 'no_bounds_Vars' in varargs.keys():
-                B=Block_Off_State(t,Vars=varargs['addvars'],Free_Vars=varargs['no_bounds_Vars'])   
-            else:
-                B=Block_Off_State(t,Vars=varargs['addvars'])   
+        elif func in ['Block_Off_State']:         
+            B=Block_Off_State(t,Vars=varargs['addvars'],Free_Vars=varargs['no_bounds_Vars'])   
         Blocks[Name]=B
     return Blocks
-
+    
 def get_sigma_U(df,i=0):
         # df - Датафрейм с данными
         # i - номер строки DataFrame
@@ -124,55 +125,55 @@ def get_sigma_U(df,i=0):
                 value=df[key].loc[i]
             else:
                 value=df[key].iloc[i]
-            if 'N' in key:
-                accuracy_dh.update({ key : {'s':1,'meas':value}})
-            elif 'Dd' in key:
-                accuracy_dh.update({ key : {'s':10,'meas':value}})
-            elif 'Thv' in key:    
-                accuracy_dh.update({ key : {'s':2,'meas':value}})    
-            elif 'Qt' in key:    
-                accuracy_dh.update({ key : {'s':5,'meas':value}})
-            elif 'D0' in key:    
-                accuracy_dh.update({ key : {'s':10,'meas':value}})
-            elif 'QSUV' in key:    
-                accuracy_dh.update({ key : {'s':10,'meas':value}})
-            elif 'GSUV' in key:    
-                accuracy_dh.update({ key : {'s':50,'meas':value}})    
-            elif 'TrPSG' in key:
-                accuracy_dh.update({ key : {'s':1,'meas':value}}) 
-            elif 'D2_5' in key:
-                accuracy_dh.update({ key : {'s':5,'meas':value}})   
-            elif 'Gd' in key:
-                accuracy_dh.update({ key : {'s':100,'meas':value}})   
-            elif 'IWF'in key:  
-                accuracy_dh.update({ key : {'s':0.3,'meas':value}})
-            elif 'IFW'in key:  
-                accuracy_dh.update({ key : {'s':0.3,'meas':value}})
-    
-            else:
-                accuracy_dh.update({ key : {'s':100,'meas':value}})
                 
-        sigma={'N_130':0.2,'TA3_Qsuv':1,'N_30':0.2,'DsTOKЕM23_8':1,
+            if 'N' in key:
+                s=1
+            elif 'Dd' in key:
+                s=10
+            elif 'P0' in key:
+                s=1
+            elif 'P2' in key:
+                s=0.1
+                
+            elif 'Thv' in key:    
+                s=2
+            elif 'Qt' in key:    
+                s=5
+            elif 'D0' in key:    
+                s=10
+            elif 'QSUV' in key:    
+                s=10
+            elif 'GSUV' in key:    
+                s=50
+            elif 'TrPSG' in key:
+                s=1
+            elif 'D2_5' in key:
+                s=5
+            elif 'Gd' in key:
+                s=100
+            elif 'IWF'in key:  
+                s=0.3
+            elif 'T' in key:
+                s=1
+            else:
+                s=100
+            accuracy_dh.update({key: {'s':s,'meas':value}})
+            
+        # Можем симы задавать "вручную"
+        manual_sigma(accuracy_dh)
+        #print(accuracy_dh)
+        return accuracy_dh     
+        
+def manual_sigma(accuracy_dh,sigma=None):
+        if sigma==None:
+            sigma={'N_130':0.2,'TA3_Qsuv':1,'N_30':0.2,'DsTOKЕM23_8':1,
                'QPU1':.5,'QPU2':.5,'QPU3':.5,'QNet1':.5,'QNet2':.5,'QNet3':.5,'QNet4':.5,
                'D_B1':50,'D_B2':50,'D_B3':50,'D_B4':50,
                'D_PWD3_8':10,'De_T':5, 'De_130':5,'De_30':5,'RU18_D0':10,'RU16_D0':10,'RU2_D0':20,'Dpsuv':5,'Dd':10,'QSUV':15,'TA5.D0':15,'TA5.P0GPZ':1}
-        
-        meas={}
         # Пример задания сигмы
         for sn in sigma.keys():
             if sn in accuracy_dh.keys():
-                accuracy_dh[sn]['s']=sigma[sn]
-        for mn in meas.keys():
-            if sn in accuracy_dh.keys():
-                accuracy_dh[mn]['meas']=meas[mn]
-                
-        for key in accuracy_dh.keys():
-            if accuracy_dh[key]['meas']<1:
-                accuracy_dh[key]['s']=1
-                accuracy_dh[key]['meas']=0
-              
-        print(accuracy_dh)
-        return accuracy_dh                 
+                accuracy_dh[sn]['s']=sigma[sn]           
         
 def find_constr(T11,name_constr='res_list'):
     # Проверка: есть ли ограничение с заданным именем в модели
@@ -243,12 +244,13 @@ def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
             m.Imbalance = Var()
             m.imbalance = Constraint(expr= m.Imbalance == sum(m.res2[t,meas] for meas in me for t in m.t))
             # Определение целевой функции
+            MFmax=10000
             if 'MF' not in list_vars(m):
-                m.MF=Var(bounds=(-10000,10000))
+                m.MF=Var(bounds=(-MFmax,MFmax))
             
             if 'cMF[1]' not in list_constraint(m):
                 m.cMF=ConstraintList()
-                m.cMF.add(m.MF==0)
+                m.cMF.add(m.MF<=MFmax)
                 m.cMF[1].deactivate()
 
             else:
@@ -260,19 +262,28 @@ def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
             
             # Если целевая функция не определена, то:
             if 'O' not in list_ovjective(m):
-                print('-----------set m.O-------------')
+                #print('-----------set m.O-------------')
                 m.O = Objective(expr= m.MF, sense=minimize)
-                print(list_ovjective(m))
+                #print(list_ovjective(m))
 
 
-        # Добавляем ограничения  
-        d_v=dict_vars(m)
-        for temp in d_v.keys():
+        # Добавляем ограничения      
+        for v in m.component_data_objects(Var):
             # Преобразуем имя оптимизационной переменной в имя показателя
-            v=d_v[temp]
+            
+            # Было: Turbine[T11].Vars[0,D0]
+            temp=v.name.replace('Vars[0,','').replace(']','').replace('[','') #Убираем Vars[0, ]
+            # Остаётся TurbineT11.D0
+            Types=['Turbine','Boiler']
+            for T in Types:
+                 temp=temp.replace(T,'') # Убиарем  Turbine
+                 #temp=temp.replace('Turbine','') # Убиарем  Turbine[        
+            # Остаётся T11.D0
+            
+            
             if temp in me:
                 # При найденых значениях вводим параметры с отклонениями
-                print(temp)
+                #print(temp)
                 for t in m.t:
                     #try:
                         m.res_list.add(m.residual[t,temp] == (v - accuracy_dh[temp]['meas'])/accuracy_dh[temp]['s'])
@@ -285,33 +296,13 @@ def add_stat_data(m,accuracy_dh,N=64,max_s2=100,min_s2=0,bound_s=10):
                             0/0
 
 
-        return m   
-
-def get_Vars_N_D0(obj):
-    DV=dict_vars(obj,Stages=True,max_point=3)
-    # Ищем вхождения N и D0
-    d={}
-    lengthN=100
-    lengthD0=100
-    for VarName in DV:
-        if 'N' in VarName and lengthN>len(VarName):
-            lengthN=len(VarName)
-            d['N']=DV[VarName]
-        if 'D0' in VarName and lengthD0>len(VarName):
-            lengthD0=len(VarName)
-            d['D0']=DV[VarName]
-    return d        
+        return m        
         
-def set_MF(m,Type,accuracy_dh):  # Более корректная интерпретация
+def set_MF(m_,Type,accuracy_dh):  # Более корректная интерпретация
     # Набросок определения целевой функции
-    # m - модель
+    # m_ - модель
     # Type - тип целевой функции
     # accuracy_dh - словарь с точностями измерителей и значениями приборов учёта
-
-    m_=m.clone()
-    # Определяем переменные с именами D0 и N
-    d=get_Vars_N_D0(m_)
-    
     t=0
     if 'cMF[1]' not in list_constraint(m_):
         m_.cMF=ConstraintList()
@@ -320,44 +311,32 @@ def set_MF(m,Type,accuracy_dh):  # Более корректная интерп�
     else:
         for i in m_.cMF.keys():
             m_.cMF[i].deactivate()
-
+    # Если 
     if 'SEAC' in Type:
         add_stat_data(m_,accuracy_dh) 
-        m_.O = Objective(expr= m_.MF, sense=minimize)
     elif 'Dmin' in Type:
-        m_.cMF.add(m_.MF==d['D0'])#m_.Vars[t,'D0'])
-        m_.O = Objective(expr= m_.MF, sense=minimize)
-    elif 'Dmax' in Type:
-        m_.cMF.add(m_.MF==d['D0'])#-m_.Vars[t,'D0'])
-        m_.O = Objective(expr= m_.MF, sense=maximize)
+        m_.cMF.add(m_.MF==m_.Vars[t,'D0'])#+
+                #((m.Neb[t,'D30_plus']+m.Neb[t,'D30_minus'])*1+
+                #(m.Neb[t,'D13_plus']+m.Neb[t,'D13_minus'])*1+
+                #(m.Neb[t,'D7l_plus']+m.Neb[t,'D7l_minus'])*0.7+
+                #(m.Neb[t,'D7r_plus']+m.Neb[t,'D7r_minus'])*0.7+
+                #(m.Neb[t,'D1_2_plus']+m.Neb[t,'D1_2_minus'])*0.5)*10)
     elif 'Nmin' in Type:  
-        m_.cMF.add(m_.MF==d['N'])#m_.Vars[t,'N'])    
-        m_.O = Objective(expr= m_.MF, sense=minimize)
+        m_.cMF.add(m_.MF==m_.Vars[t,'D0'])    
     elif 'Nmax' in Type:
-        m_.cMF.add(m_.MF==d['N'])#-m_.Vars[t,'N'])
-        m_.O = Objective(expr= m_.MF, sense=maximize)
-    return m_    
+        m_.cMF.add(m_.MF==-m_.Vars[t,'D0'])
+    
+    if 'O' not in list_ovjective(m_):
+        print('-----------set m.O-------------')
+        print(list_ovjective(m_))
+        m_.O = Objective(expr= m_.MF, sense=minimize)
 
 def get_Blocks(Blocks,name):
     def get_block_(b,name):
         return Blocks[name].clone()
     return Block(name,rule=get_block_)        
    
-def fix_vars(obj,DF,hi=0):
-    # Фиксируем переменные
-    dictVars=dict_vars(obj,Stages=True,max_point=3)
-    keysDictVars=dictVars.keys()
-    keysDF=DF.keys()
-    if isinstance(hi,int):
-        iDF=DF.iloc[hi]
-    else:
-        iDF=DF.loc[hi]
-    for DFVar in keysDF:
-        if DFVar in keysDictVars:
-            value=iDF[DFVar]
-            print(f'fix {DFVar} :{value}')
-            dictVars[DFVar].fix(value)
-            
+
 # Выполнение расчёта для интервала времени
 def calculate_(m,FData,calctype='Dmin'):
     # Старт расчёта
@@ -379,69 +358,74 @@ def calculate_(m,FData,calctype='Dmin'):
         temp.append(res[[i for i in res.keys() if i.count('.')<2]])
     res_out=pd.concat(temp)
     return res_out    
+
     
-def correct_varname(name):
-    # Скорректировать имена
-    name=name.replace('BoolVars[','')
-    name=name.replace('Vars[0,','').replace(']','')
-    name=name.replace('[','')
-    name=name.replace('Turbines','')
-    name=name.replace('Obj','')
-    name=name.replace('Turbine','')
-    name=name.replace('Boilers','')
-    name=name.replace('REU','')
-    name=name.replace('PVDPVD','PVD')
-    name=name.replace('Stages','')
-    name=name.replace("'",'')
-    return name    
+def calculate_SE(model,SE,i=0):
+    # m
+    try:
+        if callable(model):
+            m=model()
+        else:
+            m=model
+        accuracy_dh=get_sigma_U(SE,i=i)
+        add_stat_data(m,accuracy_dh)
+        opt = SolverFactory('scip')
+        opt.options["limits/gap"] = 0.01
+        opt.options["limits/time"] = 20
+        opt.options["numerics/feastol"]=0.001
+        # Пишем словарь с соотвествием переменных в оптимизационной модели и статистики
+        opt.solve(m, tee=False,symbolic_solver_labels=True)
+        res=gen_report2(m)
+        res.index=[SE.index[i]]
+    except:
+        res=[]
+    return res
+
+# Мультипоточный расчёт
+
+def calc_multicore_SE(model,DF_SE):      
+        # calculate_SE - ссылка на функцию, в которой выполняется оценка состояния
+        # Аргумент 1: 
+        func=calculate_SE
+        n=DF_SE.shape[0]
+        k=100
+        results=[]
+        
+        for i in range(0,int(np.ceil(n/k)),1):
+                    temp=range(i*k,min((i+1)*k,n),1)
+                    results.extend(Parallel(n_jobs=10, verbose=6)(delayed(func)(model,DF_SE,fl) for fl in temp))#range(0,n,1)))
+                    print('processed: %d' %(i*k))
+        # Выбираем только строчки, по которым расчёты были выполнены.
+        results=pd.concat([i for i in  results if len(i)>0])            
+        return results    
     
-def dict_vars(m,Stages=False,max_point=2):
+    
+def dict_vars(m,Stages=False):
     Vars={}
+    max_point=2
     if 'Stages' in m.name:
-        max_point=max_point+1
+        max_point=3
         Stages=True
     for Var1 in m.component_data_objects(Var):
         name=Var1.name
         if ('Stages'not in name) or Stages:
             if name.count('.')<max_point:
-                name=correct_varname(name)
+                name=name.replace('BoolVars[','')
+                name=name.replace('Vars[0,','').replace(']','')
+                name=name.replace('[','')
+                name=name.replace('Turbines','')
+                name=name.replace('Turbine','')
+                name=name.replace('Boilers','')
+                name=name.replace('REU','')
                 Vars[name]=Var1
     return Vars 
-    
-def vars_to_dataframe(m,Stages=False,max_point=2):
-    Vars={}
-    if 'Stages' in m.name:
-        max_point=max_point+1
-        Stages=True
-    for Var1 in m.component_data_objects(Var):
-        name=Var1.name
-        if ('Stages'not in name) or Stages:
-            if name.count('.')<max_point:
-                name=correct_varname(name)
-                Vars[name]=[Var1.value]
-    return pd.DataFrame(Vars)
 
-def Block2Model(m_):
-    # Конвертация фрагмента модели в модель
-    # Block2Model
-    name=m_.name
-    name=correct_varname(name)
-    Blocks_={name:m_}
-    obj=ConcreteModel()
-    obj.Obj=get_Blocks(Blocks_,[name])
-    obj.t=[0]
-    obj.MF=Var()
-    return obj
-
-def add_Eq_In_STR(TBlock,eq,DV=None):
-    BNAME=get_block_name(TBlock.name)
-    if DV==None:
-        DV={}
-    temp=dict_vars(TBlock,max_point=3) # Допускаем, что локальные переменные могут содержать 1 '.'
-    if len(BNAME)>0:
-        temp=dict((key.replace('Stages','').replace(BNAME+'.',''), value) for (key, value) in temp.items())        
-    DV={**DV,**temp}
+def add_Eq_In_STR(TBlock,eq):
+    DV=dict_vars(TBlock)
     # Переименование DV в случае, если локально работаем
+    BNAME=get_block_name(TBlock.name)
+    if len(BNAME)>0:
+        DV=dict((key.replace('Stages','').replace(BNAME+'.',''), value) for (key, value) in DV.items()) 
     
     if '<=' in eq:
         Type ='InEq1'
@@ -493,14 +477,14 @@ def add_Eq_In_STR(TBlock,eq,DV=None):
         TBlock.CL.add(expr=expr_==0)
     return Vars_not_Found
     
-def add_Equestions(TBlock,eqs,DV=None):  
+def add_Equestions(TBlock,eqs):  
     LCs=list_constraint(TBlock)
     Status=[]
     if ('CL[1]' not in LCs) and (TBlock.name+'.'+'CL[1]' not in LCs):
         TBlock.CL=ConstraintList()
     for eq in eqs:
         try:
-            Vars_Not_Found=add_Eq_In_STR(TBlock,eq,DV=DV) 
+            Vars_Not_Found=add_Eq_In_STR(TBlock,eq) 
             if len (Vars_Not_Found)==0:
                 Status.append(pd.DataFrame({'Obj':[TBlock.name],'Eq':[eq],'Status':['OK']}))
             else:
@@ -511,8 +495,8 @@ def add_Equestions(TBlock,eqs,DV=None):
     return  pd.concat(Status)
             
 
-def add_Block_Stages_to_DF(DF_Eq):
-    # Добавление колонки Block_Stages в DataFrame
+def add_ST_to_DF(DF_Eq):
+    # Добавление колонки Block_Stages
     ST=[]
     for i in range(DF_Eq.shape[0]):
         if pd.isna(DF_Eq['Stages index'].iloc[i]):
@@ -534,21 +518,10 @@ def Dict_EQ(DF_Eq):
         else:
             Eq_dict[DF_Eq['Block_Stages'].iloc[i]]=[Eq]
     return Eq_dict
-    
-def her(m):
-    return True   
 
-def add_Equestions_To_Objs(m,DF_Eq):
-    DE=Dict_EQ(DF_Eq)
-    print('Добавляемые уравнения в объекты:')
-    print(DE)
-    Status=[]
-    BlockDict=dict_blocks(m,max_count_point=1)
-    DV=dict_vars(m)
-    for k in DE.keys():
-        print('-----!!!!!!!!!!!!!!!   ',k,'        !!!!!!------')
-        Eq=DE[k]
-        TBlock=BlockDict[k]
-        Status.append(add_Equestions(TBlock,Eq,DV=DV))
-    Status=pd.concat(Status)    
-    return Status 
+#add_ST_to_DF(DF_Eq)    
+#DE=Dict_EQ(DF_Eq)
+#for k in DE.keys():
+#    Eq=DE[k]
+#    TBlock=BlockDict[k]
+#    add_Equestions1(TBlock,Eq)
