@@ -1,7 +1,7 @@
 import pandas as pd
 import time
 from pymongo import MongoClient
-from influxdb import DataFrameClient
+from influxdb import DataFrameClient,InfluxDBClient
 from json_convertor import *
 
 import config
@@ -192,8 +192,8 @@ def write_DF_2_influxDB(resdf, table_=None,  database_ =None,  time_zone_ = None
     influxDataFrameClient_client.write_points(resdf1, influx_DBname, tags=tags_, batch_size=1000)
     influxDataFrameClient_client.close()
     return True
-
-def save_df2influx(df,table_,Station,Equipment='All',TypeCalc="calc", Scenario="Base",Model="Base",Version='1'):
+        
+def save_df2influx(df,Table='basic',Station='KemGRES',Equipment='All',TypeCalc="calc", Scenario="Base",Model="Base",Version='1'):
     Tag_Names=['Station','Equipment','TypeCalc','Scenario','Model','Version']
     df_keys=df.keys()
     if 'Station' not in df_keys:
@@ -208,7 +208,7 @@ def save_df2influx(df,table_,Station,Equipment='All',TypeCalc="calc", Scenario="
         df['Model']=Model
     if 'Version' not in df_keys:
         df['Version']=Version
-    save_df_2_db(df,table_=table_,database_=None,Tag_Names=Tag_Names)        
+    save_df_2_db(df,table_=Table,database_=None,Tag_Names=Tag_Names)
         
 def save_df_2_db(res2,table_='Optimize',database_=None,Tag_Names=['Ni','Fleet', 'nBoilers']):
     if database_ ==None:
@@ -236,8 +236,8 @@ def save_df_2_db(res2,table_='Optimize',database_=None,Tag_Names=['Ni','Fleet', 
                 resdf=res2[Others][ftemp]    
                 #print(resdf) # Для отладки
                 write_DF_2_influxDB(resdf,table_, database_,tags_=tags_)
-
-def read_influx(date,table_,Station,date_to=None,Equipment='All',TypeCalc="calc", Scenario="Base",Model="Base",Version='1'):
+                
+def read_influx(date,Table='basic',Station='KemGRES',date_to=None,Equipment='All',TypeCalc="calc", Scenario="Base",Model="Base",Version='1',database_=None,time_zone_=None,host_=None):
     Tags={}
     if not Station==None:
         Tags['Station']=Station
@@ -254,7 +254,9 @@ def read_influx(date,table_,Station,date_to=None,Equipment='All',TypeCalc="calc"
     if date_to==None:
         date_to=date
     
-    return read_DF_from_influxDB(table_=table_,timestamp_=date,timestamp_to=date_to,tags_=Tags)
+    return read_DF_from_influxDB(table_=Table,timestamp_=date,timestamp_to=date_to,tags_=Tags,
+                                 database_=database_,time_zone_=time_zone_,host_=host_)
+    
 
 def read_DF_from_influxDB(host_ = None,
                           port_ = None,
@@ -289,8 +291,9 @@ def read_DF_from_influxDB(host_ = None,
     if not tags_==None:
         for k in tags_.keys():
             tags_c=tags_c+(f" {k}='{str(tags_[k])}' and")
-        
-    query=f"""select * from {table_} where {tags_c}  time >= '{timestamp_}'  and time <= '{timestamp_to}' tz('{time_zone_}')"""
+    query=f"""select * from {table_} where {tags_c}  time >= '{timestamp_}'  and time <= '{timestamp_to}' """
+    if len(time_zone_)>0:
+        query=query+f""" tz('{time_zone_}')"""
     print(query)
     df = influxDataFrameClient_client.query(query)
     if table_ in df.keys():
