@@ -312,4 +312,13 @@ docker cp influx88:/backup/backup_2025_01_30.tar.gz  /home/master/
 11 Восстановление базы
 
     mongorestore --uri="mongodb://mongo:mongo@localhost:27017" /backup/mongodb
+    
+## Подключение диска WSL 
 
+  Пример команды PowerShell для Windows: 
+  1. Смотрим список подсистем:
+     wsl --list
+     или
+     wsl -l -v
+  2. Подключаем одну из подсистем к диску K
+  net use h: \\wsl$\docker-desktop-data
