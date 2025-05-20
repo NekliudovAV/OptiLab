@@ -21,7 +21,7 @@ docker run -p 8888:8888 jupyter -d
 
 1. dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 
-2. dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+2. wsl --install -d Ubuntu
 
 3. Скачиваем и устанавливаем пакет обновления ядра Linux https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi
 
