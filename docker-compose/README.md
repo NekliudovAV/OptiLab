@@ -27,9 +27,13 @@ docker run -p 8888:8888 jupyter -d
 
 4. wsl --set-default-version 2
 
-5. Выбрать и устоновать Ubuntu
+5. Установить docker
+[https://docs.docker.com/desktop/setup/install/windows-install/]
+
+Исходная инструкция 
 
     [https://tretyakov.net/post/ustanovit-docker-na-windows-10-wsl2/?ysclid=m6tdd4d877367942673]
+
 
 # Используемые образы (Images):
 
