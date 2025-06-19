@@ -7,6 +7,25 @@ import string
 import copy
 import re 
 import xml.etree.ElementTree as ET
+import base64
+import zlib
+from urllib.parse import unquote
+
+#Достать 
+def undecode_compressed(BinaryJson):
+    decoded_data=base64.b64decode(BinaryJson)
+    decompressed_data = zlib.decompress(decoded_data, wbits=-15)
+    final_xml_string = unquote(decompressed_data.decode('utf-8'))
+    return final_xml_string
+    
+#JsonFile=".\Grafana\Boilernaya\Grafana_Json.json"
+def get_drawio_xml_string(JsonFile):
+    with codecs.open(JsonFile, "r","utf_8_sig") as json_file:
+        data_j=json.load(json_file)
+    BinaryJson=data_j['panels'][0]['flowchartsData']['flowcharts'][0]['xml']
+    return undecode_compressed(BinaryJson)
+# root = ET.fromstring(final_xml_string)
+
 
 # Сохранение таблицы с переменными DrawIO
 def Draio2Table(DrawIOFile='TA8.xml',XlsFile='Table_id1.xlsx'):
