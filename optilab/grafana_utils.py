@@ -17,6 +17,28 @@ def undecode_compressed(BinaryJson):
     decompressed_data = zlib.decompress(decoded_data, wbits=-15)
     final_xml_string = unquote(decompressed_data.decode('utf-8'))
     return final_xml_string
+
+def compress_xml_for_drawio(xml_string):
+    """
+    Compresses an XML string for use in a .drawio file.
+    """
+    # 1. Compress the XML string using zlib deflate (raw stream)
+    obj=zlib.compressobj(level=9,wbits=-15)
+    #compressed_data=obj.compress(xml_string.encode('utf-8'))+obj.flush()
+    compressed_data=obj.compress(xml_string.encode('utf-8'))+obj.flush()
+
+    # 2. Base64 encode the compressed data
+    base64_encoded_data = base64.b64encode(compressed_data)#.decode('utf-8')
+
+    # 3. Create the .drawio XML structure
+    # This is a simplified example; a real draw.io file has more attributes
+    root = ET.Element("mxfile", host="Python", agent="Python-Script")
+    diagram = ET.SubElement(root, "diagram", id="myDiagram", name="Page-1")
+    diagram.text = base64_encoded_data
+
+    # Convert the ElementTree to a string
+    return base64_encoded_data #ET.tostring(root, encoding='utf-8').decode('utf-8')
+compress_xml_for_drawio(DrawIO).decode('utf-8')
     
 #JsonFile=".\Grafana\Boilernaya\Grafana_Json.json"
 def get_drawio_xml_string(JsonFile):
