@@ -18,6 +18,12 @@ def undecode_compressed(BinaryJson):
     final_xml_string = unquote(decompressed_data.decode('utf-8'))
     return final_xml_string
 
+def get_B_drawio_xml_string(JsonFile):
+    with codecs.open(JsonFile, "r","utf-8") as json_file:
+        data_j=json.load(json_file)
+    BinaryJson=data_j['panels'][0]['flowchartsData']['flowcharts'][0]['xml']
+    return BinaryJson
+
 def compress_xml_for_drawio(xml_string):
     """
     Compresses an XML string for use in a .drawio file.
