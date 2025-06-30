@@ -23,6 +23,9 @@ def get_B_drawio_xml_string(JsonFile):
         data_j=json.load(json_file)
     BinaryJson=data_j['panels'][0]['flowchartsData']['flowcharts'][0]['xml']
     return BinaryJson
+# DataFile=".\Grafana\T_11\TA11.xlsx"
+# BJson=get_B_drawio_xml_string(JsonFile)
+# correct_Gr_Json(JsonFile,DataFile,BJson)        
 
 def compress_xml_for_drawio(xml_string):
     """
