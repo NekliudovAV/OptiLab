@@ -1,4 +1,7 @@
 # Файл, содержащий полезные конструкции для работы с моделями
+import json
+import dill
+import numpy as np
 import pyomo
 import pickle
 from pyomo.environ import *
@@ -200,3 +203,214 @@ def gen_Expression(mdh,Eq,j):
     #print(Expr)
     mdh.Constr.add(Expr==0)     
     return Expr
+
+
+#____________________ Сохранение моделей в json и их загрузка____________________
+
+
+class OptimizationModel(object):
+    model:    None
+    operLims: None
+    accuracy: None
+    target =  'SE'
+    fixed:    None
+    strtime:  None
+        
+    def pprint(self):
+        print('target:',self.target)
+        print('strtime:',self.strtime)
+        
+    def calculate_SE(self):
+        m2=self.model.clone()
+        # Исправить на fixed
+        fix_N(m2,self.modelDF,self.strtime)
+        # Добавление невязок на отклонение
+        m2=clsTurbineOpt.add_stat_data(m2,self.accuracy,N=32)
+        set_MF2(m2,self.target)
+        # Оптимальное распределение
+        SEAC,status=Rubust_Calc(m2,self.strtime,self.operLims)
+        return  SEAC,status       
+
+
+def get_lib_versions():
+    vers={}
+    for lib in ['pickle','pyomo','dill','pandas','numpy']:
+        vers[lib]=get_ver(lib)
+    return vers
+
+def get_ver(lib_name):
+    if lib_name in ['pickle']:
+        version=pickle.format_version
+    elif lib_name in ['pyomo']:
+        version=pyomo.__version__
+    elif lib_name in ['dill']:
+        version=dill.__version__
+    elif lib_name in ['pandas']:
+        version=pd.__version__
+    elif lib_name in ['numpy']:
+        version=np.__version__
+    return version
+
+
+def compare_lib_versions(vers_from_json):
+    for lib_name in vers_from_json.keys():
+        version=get_ver(lib_name)
+        if vers_from_json[lib_name]==version:
+            print(f'версии {lib_name} совпадают: {version}')
+        else:
+            print(f'сохранение выполненно в {lib_name} версии{version}, а в среде исполнения {vers_from_json[libname]}')
+
+# Преобразованеи в Json
+def df_2_json(df):
+    if isinstance(df,pd.DataFrame):
+        jdf=df.reset_index().to_json(orient='records')
+    else:
+        jdf=''
+    return jdf
+
+# Обратное преобразование
+def json_2_df(jdf):
+    if len(jdf)>0:
+        df=pd.json_normalize(json.loads(jdf))
+        if 'time' in df.keys():
+            df=df.set_index('time')
+            df.index=pd.to_datetime(df.index, unit='ms')
+        elif 'index' in df.keys():
+            df=df.set_index('index')
+    else:
+        df=None
+    return df   
+    
+
+def accuracy_2_json(accuracy_dh):
+    if isinstance(pd.DataFrame(),pd.DataFrame):
+        return json.dumps(accuracy_dh)
+    else:
+        return ''
+    
+def json_2_accuracy(jAccuracy_dh):
+    if len(jAccuracy_dh)>0:
+        return json.loads(jAccuracy_dh)
+    else:
+        return None
+            
+
+def save_model(model,filename='model_custom.json',Fixed=None,ModelDF=None,OperLims=None,Accuracy=None,Target='SE',Strtime=None):
+    model_json={}
+    model_json['PICKLE']=base64.b64encode(dill.dumps(model)).decode('utf-8')
+    model_json['ModelDF']=df_2_json(ModelDF)
+    model_json['OperLims']=df_2_json(OperLims)
+    model_json['Fixed']=df_2_json(Fixed)
+    model_json['Accuracy']=accuracy_2_json(Accuracy)
+    model_json['Target']=Target
+    model_json['Strtime']=strtime.strftime('%Y-%m-%d %H:%M %Z')
+    # Версии
+    model_json['libs_versions']=get_lib_versions()
+    with open(filename, 'w') as f:
+        json.dump(model_json, f, indent=4)
+
+def load_model_(filename='model_custom.json'):
+    with open(filename, 'rb') as f:  # 'rb' — чтение в бинарном режиме
+        data_json = json.load(f)
+    compare_lib_versions(data_json['libs_versions'])
+    pickle_data = base64.b64decode(data_json['PICKLE'].encode('utf-8'))
+    # 2. Десериализуем модель из pickle
+    model = pickle.loads(pickle_data)
+    om=OptimizationModel()
+    om.model=model
+    om.modelDF= json_2_df(data_json['ModelDF'])
+    om.fixed= json_2_df(data_json['Fixed'])
+    om.operLims= json_2_df(data_json['OperLims'])
+    om.accuracy= json_2_accuracy(data_json['Accuracy'])
+    om.target = data_json['Target']
+    om.strtime= pd.Timestamp(data_json['Strtime']).tz_convert(tz='Etc/GMT-3')
+    return om 
+
+# Копирование модели в Block
+def _copy_component(src, dest_model):
+    """Корректное копирование компонентов Pyomo между моделями/блоками"""
+    # Копирование переменных
+    if isinstance(src, Var) and (src.name.count('.')==0):
+        
+        
+        if not src.is_indexed():
+            new_var = Var(domain=src.domain, 
+                         bounds=(src.lb, src.ub),
+                         initialize=src.value)
+            dest_model.add_component(src.name, new_var)
+        else:
+            #temp_var=Var(src.index_set())
+            dest_model.add_component(src.name, Var(src.index_set()))    
+            d=dest_model.__dict__
+            for index in src.index_set():
+                    print(str(index))
+                    d[src.name][index].value = src[index].value
+                    d[src.name][index].lb = src[index].lb
+                    d[src.name][index].ub = src[index].ub
+                    d[src.name][index].domain = src[index].domain
+               
+        
+    # Копирование блоков
+    elif isinstance(src, Block):
+        # блоки копируются только целиком
+        if not src.is_indexed():
+            new_block = Block(concrete=True)
+            if src.name.count('.')==0:
+                print(f'Block:',src.name)
+                dest_model.add_component(src.name, src.clone())
+
+
+    # Копирвание ограничений
+    elif isinstance(src, Constraint):
+        print(f'Constraint:',src.name)
+        if not src.is_indexed():
+            print('Constraint not indexes')
+            new_constr = Constraint(expr=src.expr)
+            dest_model.add_component(src.name, new_constr)
+        else:
+            print('Constraint indexed')
+            new_constr = Constraint(src.index_set())
+            dest_model.add_component(src.name, new_constr)
+            for index in component:
+                 new_constr[index] = src[index].expr
+        
+    elif isinstance(src, Objective):
+        print(f'Objective:',src.name)
+        new_obj = Objective(expr=src.expr, sense=src.sense)
+        dest_model.add_component(src.name, new_obj)
+        return new_obj
+
+''' # Заготовка объединения моделей в единую
+        merged_model = ConcreteModel()
+        merged_id = str(uuid.uuid4())
+        model_id='KemGres'
+        # 2. Обрабатываем каждую исходную модель
+        for src_model in [model]:
+
+            #src_model = models_db[model_id]["pyomo_model"]
+            
+            # 3. Создаем блок для подмодели
+            block_name = f"{model_id}"
+            block = Block(concrete=True)
+            merged_model.add_component(block_name, block)
+            
+            # 4. Копируем все компоненты
+            for component in src_model.component_objects():
+                if component.name.count('.')==0:
+                    print(f'Копируется компонент {component.name}:')
+                    _copy_component(component, block)
+
+            # 5. Добавляем связующие ограничения
+            for constr in request.linking_constraints:
+                expr = evaluate_expression(constr["expression"], {}, merged_model.__dict__)
+                merged_model.add_component(
+                    constr["name"], 
+                    Constraint(expr=expr)
+                )
+            
+            # 6. Сохраняем объединенную модель
+            models_db[merged_id] = {
+                "pyomo_model": merged_model,
+                "components": request.model_ids,
+                "variable_map": request.variable_mapping
+            }'''
