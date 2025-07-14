@@ -25,7 +25,9 @@ def get_B_drawio_xml_string(JsonFile):
     return BinaryJson
 # DataFile=".\Grafana\T_11\TA11.xlsx"
 # BJson=get_B_drawio_xml_string(JsonFile)
-# correct_Gr_Json(JsonFile,DataFile,BJson)        
+# correct_Gr_Json(JsonFile,DataFile,BJson)    
+
+ 
 
 def compress_xml_for_drawio(xml_string):
     """
@@ -47,7 +49,7 @@ def compress_xml_for_drawio(xml_string):
 
     # Convert the ElementTree to a string
     return base64_encoded_data #ET.tostring(root, encoding='utf-8').decode('utf-8')
-compress_xml_for_drawio(DrawIO).decode('utf-8')
+#compress_xml_for_drawio(DrawIO).decode('utf-8')
     
 #JsonFile=".\Grafana\Boilernaya\Grafana_Json.json"
 def get_drawio_xml_string(JsonFile):
@@ -59,9 +61,12 @@ def get_drawio_xml_string(JsonFile):
 
 
 # Сохранение таблицы с переменными DrawIO
-def Draio2Table(DrawIOFile='TA8.xml',XlsFile='Table_id1.xlsx'):
-    tree = ET.parse(DrawIOFile)
-    root = tree.getroot()
+def Draio2Table(final_xml_string):
+    if len(final_xml_string)<100:
+        tree = ET.parse(DrawIOFile)
+        root = tree.getroot()
+    else:    
+        root = ET.fromstring(final_xml_string)
     diagram = root[0]
     Table=[]
     for mxCell in diagram.iter('mxCell'):
@@ -82,7 +87,7 @@ def Draio2Table(DrawIOFile='TA8.xml',XlsFile='Table_id1.xlsx'):
             Table.append(pd.DataFrame({'id':[id],'Переменная':[Value],'Добалвение текста':['anl'],'Цвет':[' '],'Тип фигуры':[figure]}))
     Table=pd.concat(Table)
     Table=Table.reset_index().drop(columns=['index'])
-    Table.to_excel(XlsFile)
+    #Table.to_excel(XlsFile)
     return  Table
     
 def add_var(List=[],datasource="InfluxDB",name="calculation",query="SHOW MEASUREMENTS", label=None):
@@ -174,22 +179,31 @@ def get_example(Type=1):
           ]
         }
     return example1_
+   
+def get_query2(fname='КА11.D0L2',refId='A',var='typecalc'):
+    if var in ['typecalc']:
+        # Тип запроса 1
+        #query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE  (\"Station\"::tag =~/^$station$/) AND (\"Equipment\"::tag =~/^$equipment$/) AND (\"TypeCalc\"::tag =~/^$'+var+'$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
+        query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE ("Ni"::tag =~ /^$Ni$/ AND "fleet"::tag =~ /^$fleet$/) AND ("n_boilers"::tag =~ /^$nBoilers$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
+    else:    
+        # Тип запроса 2
+        
+        query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE  (\"Station\"::tag =~/^$station$/) AND (\"Equipment\"::tag =~/^$equipment$/) AND (\"TypeCalc\"::tag =~/^$'+var+'$/) AND ("Model"::tag =~/^$model$/) AND ("Scenario"::tag =~/^$scenario$/) AND ("Version"::tag =~/^$version$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
     
-def get_query2(fname='КА11.D0L2',refId='A',table='/^$calculation$/',AddName=''):
-    #fname='T8.'+fname
     temp={'alias': fname.replace('.','_'),
      'groupBy': [{'params': ['$__interval'], 'type': 'time'},
       {'params': ['null'], 'type': 'fill'}],
      'orderByTime': 'ASC',
      'policy': 'default',
-     'query': 'SELECT mean(\"'+fname+'\") FROM '+ table +' WHERE (\"Ni\"::tag =~ /^$Ni$/ AND \"Fleet\"::tag =~ /^$Fleet$/) AND (\"nboilers\"::tag =~ /^$nboilers$/) AND $timeFilter GROUP BY time($__interval) fill(none)',
+     'query': query,
      'rawQuery': True,
      'refId': refId,
      'resultFormat': 'time_series',
      'select': [[{'params': ['value'], 'type': 'field'},
         {'params': [], 'type': 'mean'}]],
      'tags': [{'key': 'name', 'operator': '=', 'value': fname}]}
-    return temp
+    
+    return temp       
 
 # Формирование Json для заполнения цветом и стрелочек
 def get_rools(VarName='КА11.D0',Shape='',Text='',Add_Text='anl'):
@@ -248,8 +262,49 @@ def get_rools(VarName='КА11.D0',Shape='',Text='',Add_Text='anl'):
      'unit': 'short',
      'valueData': []}
     return temp
+    
+def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",uid="ff760b74-f5c8-4935-a467-655d48f3e022"):
+    null=None
+    false=False
+    true=True
+    u_list={
+        "current": {
+          "selected": false,
+          "text": "Analise",
+          "value": "Analise"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": uid
+        },
+        "definition": query,
+        "hide": 0,
+        "includeAll": false,
+        "label": label,
+        "multi": false,
+        "name": name,
+        "options": [],
+        "query": query,
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    return u_list
+    
+    
+def templating_list2(path2file='.\Grafana\Boilernaya\Boilernaja.xlsx',sheet_name='Vars'):
+    dataVars=pd.read_excel(path2file,sheet_name=sheet_name)
+    l=[]
+    for i in range(dataVars.shape[0]):
+        temp=dataVars.iloc[i]
+        l.append(get_var(query=temp['query'],label=temp['label'],name=temp['name']))
+    return {"list":l}
+#templating_list2(path2file=DataFile)
+    
 
-def correct_Gr_Json(JsonFile,DataFile,DrawIOFile,Type=1):
+def correct_Gr_Json(JsonFile,DataFile,DrawIO,Type=2):
     # Чтение данных модели
     with codecs.open(JsonFile, "r","utf_8_sig") as json_file:
         data_j=json.load(json_file)
@@ -257,30 +312,33 @@ def correct_Gr_Json(JsonFile,DataFile,DrawIOFile,Type=1):
     # Чтение шаблона
     import copy
     # Берём тэги из Файла:
-    data=pd.read_excel(DataFile)
+    data=pd.read_excel(DataFile,sheet_name='Правила')
     data.head()
 
     # Формирование правил данных и добаление из в json
     out=[]
     out2=[]
     for i in data.index:
-        #example1=copy.deepcopy(data_j['panels'][0]['rulesData']['rulesData'][0]);
-        #example2=copy.deepcopy(data_j['panels'][0]['rulesData']['rulesData'][0]);
+        example1=copy.deepcopy(data_j['panels'][0]['rulesData']['rulesData'][0]);
+        example2=copy.deepcopy(data_j['panels'][0]['rulesData']['rulesData'][0]);
         fname=data['Переменная'][i]
         shape_color=data['Цвет'][i]
-        if shape_color is None or shape_color  is np.NaN:
-            shape_color=""
-        id=data['id'][i]
-        add_text=data['Добалвение текста'][i]
-        print(i,fname,shape_color,id)
         
-        out.append(get_rools(fname,shape_color,id,add_text))
-        #out2.append(get_rools(fname,shape_color,text,add_text))
-
+        # 
+        for id_cell_column in ['Показывать значение','id']:
+            if  id_cell_column in data.keys():
+                text=data[id_cell_column][i]
+            
+        add_text=data['Добалвение текста'][i]
+        print(i,fname,shape_color,text)
+        
+        out.append(get_rools(fname,shape_color,text,add_text))
+        out2.append(get_rools(fname,shape_color,text,add_text))
+        
     # Перезапись в Json
     data_j['panels'][0]['rulesData']['rulesData']=out
-    #if len(data_j['panels'])>1:
-    #    data_j['panels'][1]['rulesData']['rulesData']=out2
+    if len(data_j['panels'])>1:
+        data_j['panels'][1]['rulesData']['rulesData']=out2
 
     #import copy
 
@@ -291,40 +349,40 @@ def correct_Gr_Json(JsonFile,DataFile,DrawIOFile,Type=1):
     out=[]
     out2=[]
     for i, fname in enumerate(data_t.value):
-        #example1=copy.deepcopy(data_j['panels'][0]['targets'][0]);
         example1=get_example()
-        #if len(data_j['panels'])>1:
-        #    example2=copy.deepcopy(data_j['panels'][1]['targets'][0]);
+        if len(data_j['panels'])>1:
+            example2=copy.deepcopy(data_j['panels'][1]['targets'][0]);
         print(i,fname)
         
-        var='/^$calculation$/'
-        #var2='/^$calculation2$/'
-        #if Type==2:
-        out.append(get_query2(fname,num2alfabeta(i),var))
-        #out2.append(get_query2(fname,num2alfabeta(i),var2))
-        #else:    
-        #    out.append(get_query(fname,num2alfabeta(i),var))
-        #    out2.append(get_query(fname,num2alfabeta(i),var2))
-        
+
+        out.append(get_query2(fname,num2alfabeta(i),var='typecalc'))
+        out2.append(get_query2(fname,num2alfabeta(i),var='typecalc_r'))
+
     data_j['panels'][0]['targets']=out
     if len(data_j['panels'])>1:
         data_j['panels'][1]['targets']=out2
 
     # Проверяем присутствие переменных:
-    if len(data_j['templating']['list'])==0:
-        data_j['templating']=templating_list()
+    #if len(data_j['templating']['list'])==0:
+    data_j['templating']=templating_list2(path2file=DataFile,sheet_name='Vars')
+        
     
     # Сохранение модели
     with open(JsonFile[:-4]+str(Type)+"_correct.json","w", encoding='utf-8') as jsonfile:
             json.dump(data_j,jsonfile,indent=2,ensure_ascii=False)
 
+    
+    
+    if len(DrawIO)<100:
+        tree = ET.parse(DrawIO)
+        root = tree.getroot()
+        textDrawIO=root[0].text
+    else:    
+        textDrawIO = DrawIO
     # Обновление схемы
-    import xml.etree.ElementTree as ET
-    tree = ET.parse(DrawIOFile)
-    root = tree.getroot()
-    data_j['panels'][0]['flowchartsData']['flowcharts'][0]['xml']=root[0].text
-    #if len(data_j['panels'])>1:
-    #    data_j['panels'][1]['flowchartsData']['flowcharts'][0]['xml']=root[0].text
+    data_j['panels'][0]['flowchartsData']['flowcharts'][0]['xml']=textDrawIO
+    if len(data_j['panels'])>1:
+        data_j['panels'][1]['flowchartsData']['flowcharts'][0]['xml']=textDrawIO
 
 
     # Сохранение результата
