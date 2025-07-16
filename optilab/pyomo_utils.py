@@ -29,6 +29,25 @@ def list_vars(m):
     for Var1 in m.component_data_objects(Var):
         Vars.append(Var1.name)
     return Vars   
+
+def get_type(aaa):
+    if aaa.is_continuous():
+        out='Real'
+    elif aaa.is_binary():
+        out='Bynary'
+    elif aaa.is_integer():
+        out='Integer'
+    else:
+        out='Unnown'
+    return out    
+
+def DF_vars(m):
+    Vars=[]
+    for Var1 in m.component_data_objects(Var):
+        name=Var1.name
+        if name.count('.')<2:
+            Vars.append({'NameVar':name,'Value':Var1.value,'domain:':get_type(Var1),'IsFixed':Var1.is_fixed(),'Lb':Var1.bounds[0],'Ub':Var1.bounds[1]})
+    return Vars   
     
 def correct_var_name(name):
     name=name.replace('BoolVars[','')
