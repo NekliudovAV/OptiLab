@@ -170,10 +170,23 @@ def Example():
                 'Pt_plus_1=Pt+1',           # Pressure in absolute units kgf/cm2
                 'P_PSG=tw2p(Tr_PSG)',     # Saturated steam pressure at temperature
 
-                #"D0_=fig('D0',Pt,N)"
+                "D0_=fig('D0',Pt,N)"
                ]
+
+        # Загрузка исходных временных рядов
+        # Data Reading
+        FileName='TA5.xlsx'
+        DF5_P=pd.read_excel(FileName)
+        DF5_P=DF5_P.reset_index().drop(columns='index')
+        DF5_P['time']=pd.to_datetime(DF5_P['time'])
+        DF5_P=DF5_P.set_index('time')
+        DF5_P.columns=[i[4:] for i in DF5_P.keys()]
+        DF5_P.head()
+        
         evaluator = ExpressionEvaluator(DF5_P)
-        #evaluator.add_curve('D0',D0[['Pt','N']],D0[['D0']])
-        # Добавить уравнения 
+        # Расчёт D0
+        D0=pd.read_excel('D0Curve.xlsx')
+        evaluator.add_curve('D0',D0[['Pt','N']],D0[['D0']])
+        # Расчёт по уравнениям
         result = evaluator.calc_expressions_eq(expressions_eq) 
         return result 
