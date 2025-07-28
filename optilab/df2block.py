@@ -1123,3 +1123,87 @@ def get_block_name(Block_name):
     else:
         s = Block_name
     return s
+
+
+# Проверяем точки и получаем стату: выходят ли значения за границу
+
+#import matplotlib.pyplot as plt
+# Определяем точки, попавшие за пределы ОДЗ
+def out_pointd(point, df, chvars=['N','Qt']):
+    ch = ConvexHull(df[chvars])
+    eq = ch.equations.T
+    dist = point@eq[:-1] + eq[-1]
+    dist = np.max(dist,axis=1)
+    dist[dist<0]=0
+    return dist 
+
+def extend_ch_df(ch_df, add_df_points):
+    lm = LinearRegression()
+    lm.fit(ch_df.iloc[:,:-1],ch_df.iloc[:,-1])
+    ext_df = ch_df.iloc[:,:-1]#.copy()
+    # Выбираем 
+    add_df = ext_df.iloc[np.zeros(add_df_points.shape[0])]#.copy()
+    
+
+    for col in  add_df_points.keys():
+        add_df[col] =  add_df_points[col].values 
+
+    
+    
+    ext_df = ext_df.append([add_df])
+    if ch_df.shape[1] > 2:
+        print('Прорерживаем точки по CH')
+        ch = ConvexHull(ext_df)
+        ext_df = ext_df.iloc[ch.vertices]
+
+    calc_val=    lm.predict(ext_df)
+    ext_df[ch_df.columns[-1]] = calc_val
+    return ext_df.drop_duplicates().reset_index(drop=True)
+
+# По переменным строится 
+def reduce_points_by_CH(ext_df,chvars=['N','Qt']):
+    ext_df=ext_df.reset_index(drop=True)
+    print('reduce_points_by_CH')
+    ch_df=ext_df[chvars]
+    indexes=[]
+    if ch_df.shape[1] >= 2:
+        print('Прорерживаем точки по CH')
+        ch = ConvexHull(ch_df)
+        indexes=list(ch.vertices)
+        #print('ch',indexes)
+        
+    for key in ext_df.keys():#[:-1]:
+        print(key,'reduce_points_by_CH')
+        indexes.append(ext_df[key].idxmin())
+        indexes.append(ext_df[key].idxmax())
+        indexes=list(set(indexes))
+        indexes.sort()
+        #print(key,indexes)
+    #print(ext_df)
+    ext_df = ext_df.iloc[indexes]
+    return ext_df
+
+
+def corerect_DF_by_Statistics(Curve,points):
+    start_time = time.time()
+    dist=out_pointd(points,Curve)
+    Points_out_of_CH=points[dist>0]
+    print('Время проверки харкетристик')
+    print("--- %s seconds ---" % (time.time() - start_time)) 
+    if Points_out_of_CH.shape[0]>0:
+        Curve=extend_ch_df(Curve,Points_out_of_CH)  
+    print('Время расширения харкетристик')
+    print("--- %s seconds ---" % (time.time() - start_time))
+    return Curve
+
+def show_curv_and_points(Curve,points):
+    # Определяем переменные, по которым строится область
+    keys=points.keys()
+    if len(keys)==2:
+        plt.scatter(x=points[keys[0]],y=points[keys[1]])
+        plt.scatter(x=Curve[keys[0]],y=Curve[keys[1]])
+        plt.grid()
+        plt.xlabel(keys[0])
+        plt.ylabel(keys[1])
+        plt.legend(['Stat data','Curve'])
+        plt.title('Область определения поверхности')    
