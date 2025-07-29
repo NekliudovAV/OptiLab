@@ -1137,10 +1137,22 @@ def out_pointd(point, df, chvars=['N','Qt']):
     dist[dist<0]=0
     return dist 
 
-def extend_ch_df(ch_df, add_df_points):
+def extend_ch_df(ch_df, add_df_points,add_delta=0.5):
+    # add_delta - Величина, на сколько расшираяется ОДЗ с "запасом"
     lm = LinearRegression()
     lm.fit(ch_df.iloc[:,:-1],ch_df.iloc[:,-1])
     ext_df = ch_df.iloc[:,:-1]#.copy()
+    #
+    temp=add_df_points.copy()
+    for key in add_df_points.keys():
+        if add_delta>0:
+            temp_max=temp.copy()
+            temp_min=temp.copy()
+            temp_max[key]=temp[key]+add_delta
+            temp_min[key]=temp[key]-add_delta
+            temp1=pd.concat([temp_min,temp_max])
+            add_df_points=pd.concat([add_df_points,temp1])
+    #
     # Выбираем 
     add_df = ext_df.iloc[np.zeros(add_df_points.shape[0])]#.copy()
     
