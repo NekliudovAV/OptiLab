@@ -12,7 +12,7 @@ services:
       #- INFLUXDB_ADMIN_USER=admin  # Имя администратора
       #- INFLUXDB_ADMIN_PASSWORD=admin123  # Пароль администратора
     volumes:
-      - influxdb_data:/var/lib/influxdb  # Volume для хранения данных InfluxDB
+      - ./influxdb_data:/var/lib/influxdb  # Volume для хранения данных InfluxDB
     networks:
       - influxdb_network
 
@@ -21,3 +21,4 @@ volumes:
 
 networks:
   influxdb_network:  # Создание сети для InfluxDB
+
