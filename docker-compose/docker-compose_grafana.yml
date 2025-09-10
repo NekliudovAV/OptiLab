@@ -1,11 +1,13 @@
-#docker-compose -f docker-compose_grafana.yml up -d
+# sudo chown -R 472:472 grafana_data
+# docker-compose -f docker-compose_grafana.yml up -d
 
-version: '3'
+version: '3.8'
 
 services:
   grafana:
     image: grafana/grafana:9.4.3
     container_name: grafana
+    restart: always
     ports:
       - "3000:3000"
     volumes:
