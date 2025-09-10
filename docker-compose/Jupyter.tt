@@ -17,3 +17,5 @@ CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--al
 # docker build -t scip_pyomo_9_1 -f Dockerfile_scip_pyomo9_1.tt .
 # docker build -t jupyter -f Jupyter.tt .
 # docker run -p 8888:8888 jupyter
+# docker update --restart=always [cname]
+
