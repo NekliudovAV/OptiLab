@@ -102,18 +102,24 @@ docker run -p 8888:8888 jupyter -d
 2. После того, как всё установится и настроится, необходимо откорректировать файл: /etc/gitlab/gitlab.rb
 (1256-1258 строки) Сократится используемая оперативная память
 
+чтобы зайти в контейнер: docker exec -ti [id] /bin/bash 
+
+чтобы отредактировать файл, нужно дать ему доступ: chmod [имя файла] 777, потом вернуть обратно (ls -l чтобы посмотреть исходные)
+
    puma['worker_processes'] = 2
 
    puma['min_threads'] = 1
 
    puma['max_threads'] = 4
 
-3. Можно отключить логирование prometheus, чтобы не разрастась папка data: /etc/gitlab/gitlab.rb
+чтобы выйти из контейнера нужно набрать exit или ctrl-D   
+
+4. Можно отключить логирование prometheus, чтобы не разрастась папка data: /etc/gitlab/gitlab.rb
 (2591 стока)
 
    prometheus_monitoring['enable'] = false
 
-4. Настройка автоматического бэкапирования (ТРЕБУЕТСЯ ДОРАБОКА):
+5. Настройка автоматического бэкапирования (ТРЕБУЕТСЯ ДОРАБОКА):
    
    apt-get update
    
@@ -131,14 +137,34 @@ docker run -p 8888:8888 jupyter -d
    Остановка gitlab: gitlab-ctl stop
    
    Запуск gitlab: gitlab-ctl start
-
+   
 ## Настройка Runner:
 
-1. Необходимо зайти в файл "/etc/gitlab-runner/config.toml" и поменять строчку
-volumes = ["/cache"] на
-volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+0. Нужно зарегистрировать runner:
 
-2. Добавить строчку
+   Admin area -> Create instance runner
+   
+   Поставить флаг Run untagged jobs
+
+1. Перейти на страницу
+   
+   http://[ip]:8929/admin/runners/1 # 1- номер ранера
+
+   а. Скопировать строчку 
+   
+2. Перейти в docker runner
+   
+   a. выполнить  строчку в докере.
+   
+   б. Пишем docker
+   
+	  в. Пишем docker:dind
+
+   г. Необходимо зайти в файл "/etc/gitlab-runner/config.toml" и поменять строчку
+      volumes = ["/cache"] на
+      volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+
+3. Добавить строчку
 pull_policy = "if-not-present" 
 
 ## Пример старта контейнера gitlab (в ручную)
