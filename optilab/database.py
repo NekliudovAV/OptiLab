@@ -24,8 +24,13 @@ def mongo_db(IP=config.MONGO['IP_']):
         
 
 
-def write_DF_2mongo(DFSt2,Equipment='TA3',Name='D0',Subsystem='St2',Model='Base',IP=None):
-        # 
+def write_DF_2mongo(DFSt2,Station='Base',Equipment='TA3',Subsystem=None,Name='D0',Version=None,IP=None,Type='Curve'):
+        # Type:
+        # 1. Curve
+        # 2. Limits     [Name,Valuese]
+        # 3. Links2load [KKS,Descriprion,Vars]
+        # 4. CalcEq     [Eq]
+    
         if IP==None:
             IP=config.MONGO['IP_']
             
@@ -37,20 +42,29 @@ def write_DF_2mongo(DFSt2,Equipment='TA3',Name='D0',Subsystem='St2',Model='Base'
         #    for k in DFSt2.keys():
         #        if isinstance(DFSt2[k],pd.DataFrame):
         #            DFSt2[k]=DFSt2[k].to_json()
-        
+
+    
+        # Station.Equipment.Subsystem.Name:Version
         name=Equipment            
         if not Subsystem==None:
             name=name+'.'+Subsystem
         name=name+'.'+Name    
-        if not Model=='Base':
-            name=name+':'+Model
-            
+        #Equipment.Subsystem.Name
+        if not Station=='Base':
+            name=Station+'.'+name
+        #[Station.]Equipment[.Subsystem].Name    
+        if not Version==None:
+            Version=str(Version)
+            name=name+':'+Version
+        #Station.Equipment[.Subsystem].Name:Version    
+    
         dict2mongo = {'name':name,
                       'Equipment':Equipment,
                       'Subsystem': Subsystem,
                       'Name':Name,
-                      'Model':Model,
-                      'Type': 'Curve',
+                      'Station':Station,
+                      'Version':Version,
+                      'Type': Type,
                       'DF' : DFSt2}
 
         client = MongoClient(IP, config.MONGO['port_'],
