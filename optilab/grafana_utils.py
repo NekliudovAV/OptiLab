@@ -23,6 +23,37 @@ def get_B_drawio_xml_string(JsonFile):
         data_j=json.load(json_file)
     BinaryJson=data_j['panels'][0]['flowchartsData']['flowcharts'][0]['xml']
     return BinaryJson
+
+def get_diagram_from_file(file_path):
+    #file_path=final_xml_string
+    # Читаем файл
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Парсим XML
+    root = ET.fromstring(content)
+    if 'compressed' in  root.keys():
+        # Находим элемент с диаграммой
+        diagram_elem = root.find('.//diagram')
+        if diagram_elem is not None:
+            # Декодируем из base64 и распаковываем
+            compressed_data = diagram_elem.text
+            decoded_data=base64.b64decode(compressed_data)
+            decompressed_data = zlib.decompress(decoded_data, wbits=-15)
+            final_xml_string = unquote(decompressed_data.decode('utf-8'))
+    
+            #decoded_data = base64.b64decode(compressed_data)
+            #decompressed_data = gzip.decompress(decoded_data)
+            
+            # Парсим внутренний XML
+            root = ET.fromstring(final_xml_string)
+           
+    else:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+    diagram = root[0]    
+    return diagram
+
 # DataFile=".\Grafana\T_11\TA11.xlsx"
 # BJson=get_B_drawio_xml_string(JsonFile)
 # correct_Gr_Json(JsonFile,DataFile,BJson)    
@@ -61,13 +92,12 @@ def get_drawio_xml_string(JsonFile):
 
 
 # Сохранение таблицы с переменными DrawIO
-def Draio2Table(final_xml_string):
+def Draio2Table(final_xml_string,NameObj=''):
     if len(final_xml_string)<100:
-        tree = ET.parse(DrawIOFile)
-        root = tree.getroot()
+        diagram=get_diagram_from_file(final_xml_string)
     else:    
         root = ET.fromstring(final_xml_string)
-    diagram = root[0]
+        diagram = root[0]
     Table=[]
     for mxCell in diagram.iter('mxCell'):
         id=mxCell.get('id')
@@ -84,13 +114,15 @@ def Draio2Table(final_xml_string):
         else:
             figure=mxCell.get('style').split(';')[0]
         if len(Value)>0:   
+            if len(NameObj)>0:
+                Value=NameObj+'.'+Value
             Table.append(pd.DataFrame({'id':[id],'Переменная':[Value],'Добалвение текста':['anl'],'Цвет':[' '],'Тип фигуры':[figure]}))
     Table=pd.concat(Table)
     Table=Table.reset_index().drop(columns=['index'])
     #Table.to_excel(XlsFile)
     return  Table
     
-def add_var(List=[],datasource="InfluxDB",name="calculation",query="SHOW MEASUREMENTS", label=None):
+def add_var(List=[],datasource="InfluxDB",name="calculation",query="SHOW MEASUREMENTS", label=None,regex=""):
     null=None
     false=False
     if label is None:
@@ -114,7 +146,7 @@ def add_var(List=[],datasource="InfluxDB",name="calculation",query="SHOW MEASURE
         "options": [],
         "query": query,
         "refresh": 1,
-        "regex": "",
+        "regex": regex,
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
@@ -122,7 +154,7 @@ def add_var(List=[],datasource="InfluxDB",name="calculation",query="SHOW MEASURE
     List.append(temp)
     
 
-def templating_list(datasource="InfluxDB",tags=['Fleet','Ni','nboilers']):
+def templating_list(datasource="InfluxDB",tags=['Fleet','Ni','nboilers'],regex=""):
     
     VarInDB='T8.D0'
     List=[]
@@ -179,16 +211,43 @@ def get_example(Type=1):
           ]
         }
     return example1_
+    
+def get_query_from_file(DataFile,fname='КА11.D0L2',refId='A',sheet_name='query'):
+
+    data=pd.read_excel(DataFile,sheet_name=sheet_name)
+    # Чтение из  строки 1
+    temp=data.iloc[0]
+    query=temp.query + ' where '+(''.join(['('+i+') and ' for i in (temp.Tags.replace('\n','').split(','))])) + temp.TimeFilter
+    query=query.replace('field_name',fname)
+    print(query)
+    temp={'alias': fname.replace('.','_'),
+     'groupBy': [{'params': ['$__interval'], 'type': 'time'},
+      {'params': ['null'], 'type': 'fill'}],
+     'orderByTime': 'ASC',
+     'policy': 'default',
+     'query': query,
+     'rawQuery': True,
+     'refId': refId,
+     'resultFormat': 'time_series',
+     'select': [[{'params': ['value'], 'type': 'field'},
+        {'params': [], 'type': 'mean'}]],
+     'tags': [{'key': 'name', 'operator': '=', 'value': fname}]}
+    return temp    
    
 def get_query2(fname='КА11.D0L2',refId='A',var='typecalc'):
     if var in ['typecalc']:
         # Тип запроса 1
         #query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE  (\"Station\"::tag =~/^$station$/) AND (\"Equipment\"::tag =~/^$equipment$/) AND (\"TypeCalc\"::tag =~/^$'+var+'$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
-        query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE ("Ni"::tag =~ /^$Ni$/ AND "fleet"::tag =~ /^$fleet$/) AND ("n_boilers"::tag =~ /^$nBoilers$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
+        
+        #query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE ("Ni"::tag =~ /^$Ni$/ AND "fleet"::tag =~ /^$fleet$/) AND ("n_boilers"::tag =~ /^$nBoilers$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
+        query=f"SELECT mean(\"{fname}\") from $table where (fleet='$fleet') and (model='$model') and (equipment='$equipment') and (type_calc='$typecalc') and (scenario='$scenario') and (version='$version') and $timeFilter GROUP BY time($__interval) fill(none)"
+        print('query1:',query)
     else:    
         # Тип запроса 2
         
-        query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE  (\"Station\"::tag =~/^$station$/) AND (\"Equipment\"::tag =~/^$equipment$/) AND (\"TypeCalc\"::tag =~/^$'+var+'$/) AND ("Model"::tag =~/^$model$/) AND ("Scenario"::tag =~/^$scenario$/) AND ("Version"::tag =~/^$version$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
+        #query=f'SELECT mean(\"{fname}\") FROM /^$calculation$/ WHERE  (\"Station\"::tag =~/^$station$/) AND (\"Equipment\"::tag =~/^$equipment$/) AND (\"TypeCalc\"::tag =~/^$'+var+'$/) AND ("Model"::tag =~/^$model$/) AND ("Scenario"::tag =~/^$scenario$/) AND ("Version"::tag =~/^$version$/) AND $timeFilter GROUP BY time($__interval) fill(none)'
+        query=f"SELECT mean(\"{fname}\") from $table where (fleet='$fleet') and (model='$model') and (equipment='$equipment') and (type_calc='$typecalc') and (scenario='$scenario') and (version='$version') and $timeFilter GROUP BY time($__interval) fill(none)"
+        print('query2:',query)
     
     temp={'alias': fname.replace('.','_'),
      'groupBy': [{'params': ['$__interval'], 'type': 'time'},
@@ -263,7 +322,7 @@ def get_rools(VarName='КА11.D0',Shape='',Text='',Add_Text='anl'):
      'valueData': []}
     return temp
     
-def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",uid="ff760b74-f5c8-4935-a467-655d48f3e022"):
+def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",uid_db="ff760b74-f5c8-4935-a467-655d48f3e022",database="influxdb",regex=""):
     null=None
     false=False
     true=True
@@ -274,8 +333,8 @@ def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",ui
           "value": "Analise"
         },
         "datasource": {
-          "type": "influxdb",
-          "uid": uid
+          "type": database,
+          "uid": uid_db
         },
         "definition": query,
         "hide": 0,
@@ -286,7 +345,7 @@ def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",ui
         "options": [],
         "query": query,
         "refresh": 1,
-        "regex": "",
+        "regex": regex,
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
@@ -294,17 +353,34 @@ def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",ui
     return u_list
     
     
-def templating_list2(path2file='.\Grafana\Boilernaya\Boilernaja.xlsx',sheet_name='Vars'):
-    dataVars=pd.read_excel(path2file,sheet_name=sheet_name)
+def templating_list2(path2file='.\Grafana\T_100\T_100.xlsx',sheet_name='Vars'):
+    dataVars=pd.read_excel(path2file,sheet_name=sheet_name).fillna("")
     l=[]
     for i in range(dataVars.shape[0]):
         temp=dataVars.iloc[i]
-        l.append(get_var(query=temp['query'],label=temp['label'],name=temp['name']))
+        uid_db=temp['uid_db']
+        if 'regex' in temp.keys():
+            regex=temp['regex']
+        else:
+            regex=""
+        print(uid_db)
+        l.append(get_var(query=temp['query'],label=temp['label'],name=temp['name'],uid_db=uid_db,regex=regex))
     return {"list":l}
 #templating_list2(path2file=DataFile)
     
 
+def read_f_diagramm(DrawioFile=".\Grafana\T_100\T_100.xml"):
+    # Чтение диаграммы
+    if len(DrawioFile)<100:
+            DrawIOFile=DrawioFile
+            tree = ET.parse(DrawIOFile)
+            root = tree.getroot()
+            diagram = root[0]
+    BJson=diagram.text
+    return BJson
+
 def correct_Gr_Json(JsonFile,DataFile,DrawIO,Type=2):
+    print('_'*100,DrawIO)
     # Чтение данных модели
     with codecs.open(JsonFile, "r","utf_8_sig") as json_file:
         data_j=json.load(json_file)
@@ -350,13 +426,16 @@ def correct_Gr_Json(JsonFile,DataFile,DrawIO,Type=2):
     out2=[]
     for i, fname in enumerate(data_t.value):
         example1=get_example()
-        if len(data_j['panels'])>1:
-            example2=copy.deepcopy(data_j['panels'][1]['targets'][0]);
+        #if len(data_j['panels'])>1:
+        #    example2=copy.deepcopy(data_j['panels'][1]['targets'][0]);
         print(i,fname)
         
-
-        out.append(get_query2(fname,num2alfabeta(i),var='typecalc'))
-        out2.append(get_query2(fname,num2alfabeta(i),var='typecalc_r'))
+        # Чтение данных
+        out.append(get_query_from_file(DataFile,fname=fname,refId=num2alfabeta(i),sheet_name='query'))
+        #out2.append(get_query_from_file(DataFile,fname=fname,refId=num2alfabeta(i),sheet_name='query'))
+        
+        #out.append(get_query2(fname,num2alfabeta(i),var='typecalc'))
+        #out2.append(get_query2(fname,num2alfabeta(i),var='typecalc_r'))
 
     data_j['panels'][0]['targets']=out
     if len(data_j['panels'])>1:
@@ -402,4 +481,3 @@ def num2alfabeta(i):
 # DataFile='TA8_aouto.xlsx'
 # DrawIOFile='TA8.xml'
 #correct_Gr_Json(JsonFile,DataFile,DrawIOFile,Type=1)
-
