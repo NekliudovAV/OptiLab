@@ -351,6 +351,32 @@ def get_var(query="SHOW MEASUREMENTS",label="Данные",name="calculation",ui
         "type": "query"
       }
     return u_list
+
+def get_custom_var(query="SEAC5,BRAC2,SEAC_ST,UC,calc2",label="Данные",name="calculation",uid_db="ff760b74-f5c8-4935-a467-655d48f3e022",database="influxdb",regex=""):
+    null=None
+    false=False
+    true=True
+    lvars=query.split(',')
+    options=[{"selected": false,"text": i, "value": i} for i in lvars]
+    u_list={
+        "current": {
+          "selected": false,
+          "text": lvars[0],
+          "value": lvars[0]
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": label,
+        "multi": false,
+        "name": name,
+        "options": options,
+        "query": query,
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    return u_list    
+    
     
     
 def templating_list2(path2file='.\Grafana\T_100\T_100.xlsx',sheet_name='Vars'):
@@ -364,7 +390,13 @@ def templating_list2(path2file='.\Grafana\T_100\T_100.xlsx',sheet_name='Vars'):
         else:
             regex=""
         print(uid_db)
-        l.append(get_var(query=temp['query'],label=temp['label'],name=temp['name'],uid_db=uid_db,regex=regex))
+        match temp['type']:
+            case 'Query':
+                l.append(get_var(query=temp['query'],label=temp['label'],name=temp['name'],uid_db=uid_db,regex=regex))
+            case 'Custom':
+                l.append(get_custom_var(query=temp['query'],label=temp['label'],name=temp['name'],uid_db=uid_db,regex=regex))
+            case __:
+                l.append(get_var(query=temp['query'],label=temp['label'],name=temp['name'],uid_db=uid_db,regex=regex))
     return {"list":l}
 #templating_list2(path2file=DataFile)
     
@@ -481,3 +513,4 @@ def num2alfabeta(i):
 # DataFile='TA8_aouto.xlsx'
 # DrawIOFile='TA8.xml'
 #correct_Gr_Json(JsonFile,DataFile,DrawIOFile,Type=1)
+
