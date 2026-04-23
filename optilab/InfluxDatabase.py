@@ -4,9 +4,6 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 import pandas as pd
 import config
-from tqdm import tqdm
-import time
-from datetime import datetime, timedelta
 @dataclass
 class InfluxConfig:
     """Конфигурация подключения к InfluxDB"""
@@ -313,230 +310,13 @@ class EnhancedInfluxDBManager(InfluxDBManager):
             additional_tags=tags,
             field_columns=field_columns
         )
-    def read_data(self, 
-                 measurement: str,                  #1
-                 start_time: Optional[str] = None,  #2
-                 end_time: Optional[str] = None,    #3
-                 fields: Optional[List[str]] = None,#4
-                 tags: Optional[Dict[str, str]] = None,#5
-                 database: Optional[str] = None,       #6 
-                 time_zone: str = 'Etc/GMT-3',         #7
-                 batch_size: str = '1d',               #8
-                 max_retries: int = 3,                 #9 
-                 delay_between_batches: float = 0.1) -> pd.DataFrame:
-        """
-        Чтение данных из InfluxDB с фильтрацией
-        
-        Args:
-            measurement: Имя измерения
-            start_time: Начальное время (можно строку или datetime)
-            end_time: Конечное время (опционально)
-            fields: Список полей для выборки
-            tags: Фильтры по тегам
-            database: Имя базы данных
-            time_zone: Часовой пояс
-            batch_size: Размер батча ('1d', '6h', '1h' и т.д.)
-            max_retries: Максимальное количество повторных попыток
-            delay_between_batches: Задержка между батчами в секундах          
-        Returns:
-            pd.DataFrame: Данные из InfluxDB
-        """
-        if start_time is None:
-            print('start_time: None')
-        else:
-            start_time = pd.Timestamp(start_time)
-            end_time = pd.Timestamp(end_time) if end_time else pd.Timestamp(start_time)
-        
-        db_name = database or self.config.db_name
-        self.connect(db_name)
-        return self._read_single_batch(measurement, start_time, end_time, fields, tags, database, time_zone)    
-
-    def read_data_batch(self, 
-                       measurement: str,                    #1
-                       start_time: Optional[str] = None,    #2
-                       end_time: Optional[str] = None,      #3
-                       fields: Optional[List[str]] = None,  #4
-                       tags: Optional[Dict[str, str]] = None,#5
-                       database: Optional[str] = None,       #6
-                       time_zone: str = 'Etc/GMT-3',         #7
-                       batch_size: str = '365d',              #8
-                       max_retries: int = 3,                 #9
-                       delay_between_batches: float = 0.05) -> pd.DataFrame:
-        """
-        Чтение данных из InfluxDB с пакетной обработкой
-        
-        Args:
-            measurement: Имя измерения
-            start_time: Начальное время (можно строку или datetime)
-            end_time: Конечное время (опционально)
-            fields: Список полей для выборки
-            tags: Фильтры по тегам
-            database: Имя базы данных
-            time_zone: Часовой пояс
-            batch_size: Размер батча ('1d', '6h', '1h' и т.д.)
-            max_retries: Максимальное количество повторных попыток
-            delay_between_batches: Задержка между батчами в секундах
-            
-        Returns:
-            pd.DataFrame: Объединенные данные из всех батчей
-        """
-        if start_time is None:
-            print('start_time: None')
-        else:
-            start_time = pd.Timestamp(start_time)
-            end_time = pd.Timestamp(end_time) if end_time else pd.Timestamp(start_time)
-        
-        print('read_data_batch!!!!!',measurement,start_time,end_time,fields,tags)
-        # Обработка временных параметров
-        if start_time is None:
-            print('start_time: None')
-            return self._read_single_batch(measurement, None, None, fields, tags, database, time_zone)
-        
-        start_dt = pd.Timestamp(start_time)
-        end_dt = pd.Timestamp(end_time) if end_time else pd.Timestamp.now()
-        
-        # Параметры для единичного запроса
-        if start_dt == end_dt:
-            return self._read_single_batch(measurement, start_time, end_time, fields, tags, database, time_zone)
-        
-        # Генерация временных интервалов для батчей
-        time_ranges = self._generate_time_ranges(start_dt, end_dt, batch_size)
-        
-        print(f"Выполняется пакетное чтение: {len(time_ranges)} батчей")
-        
-        all_data = []
-        db_name = database or self.config.db_name
-        self.connect(db_name)
-        
-        try:
-            with tqdm(total=len(time_ranges), desc=f"Чтение {measurement}") as pbar:
-                for batch_start, batch_end in time_ranges:
-                    #print('In batch steps...','+'*50)
-                    batch_data = self._read_single_batch(measurement, batch_start, batch_end, fields, tags, database, time_zone)
-                    #print('In batch steps...','+-'*50)
-                    #print(batch_data)
-                    #batch_data = self._read_batch_with_retry( measurement, batch_start, batch_end, fields, tags,db_name, time_zone, max_retries)
-                    
-                    if not batch_data.empty:
-                        all_data.append(batch_data)
-                        pbar.set_postfix({
-                            'batch': f"{batch_start.strftime('%Y-%m-%d %H:%M')}",
-                            'records': len(batch_data)
-                        })
-                    
-                    pbar.update(1)
-                    #print('In batch steps...','...'*50)
-                    # Задержка между запросами
-                    if delay_between_batches > 0:
-                        time.sleep(delay_between_batches)
-            
-            # Объединение всех данных
-            if all_data:
-                #result_df = pd.concat(all_data, ignore_index=True)
-                result_df = pd.concat(all_data)
-                print(f"Успешно прочитано {len(result_df)} записей за {len(time_ranges)} батчей")
-                return result_df
-            else:
-                print("Нет данных для указанных параметров")
-                return pd.DataFrame()
-                
-        except Exception as e:
-            print(f"Ошибка при пакетном чтении из InfluxDB: {e}")
-            return pd.DataFrame()
-        finally:
-            self.disconnect()
-
-    def _generate_time_ranges(self, start_dt: datetime, end_dt: datetime, 
-                             batch_size: str) -> List[tuple]:
-        """Генерация временных интервалов для батчей"""
-        
-        # Парсинг размера батча
-        size_value = int(batch_size[:-1])
-        size_unit = batch_size[-1]
-        
-        # Создание временных интервалов
-        time_ranges = []
-        current_start = start_dt
-        
-        while current_start < end_dt:
-            if size_unit == 'd':  # дни
-                current_end = current_start + timedelta(days=size_value)
-            elif size_unit == 'h':  # часы
-                current_end = current_start + timedelta(hours=size_value)
-            elif size_unit == 'm':  # минуты
-                current_end = current_start + timedelta(minutes=size_value)
-            else:
-                raise ValueError(f"Неизвестная единица измерения: {size_unit}")
-            
-            # Убедимся, что не выходим за конечное время
-            current_end = min(current_end, end_dt)
-            time_ranges.append((current_start, current_end))
-            
-            current_start = current_end
-        
-        return time_ranges        
-        
-            
-    def _read_single_batch(self, measurement: str, 
-                      start_time: Optional[str] = None,
-                      end_time: Optional[str] = None,
-                      fields: Optional[List[str]] = None,
-                      tags: Optional[Dict[str, str]] = None,
-                      database: Optional[str] = None,
-                      time_zone: str = 'Etc/GMT-3') -> pd.DataFrame:
-        """
-        Чтение одного батча данных (оригинальная логика)
-        """
-        db_name = database or self.config.db_name
-        self.connect(db_name)
-        
-        try:
-            # Формирование условия для тегов
-            tags_condition = ''
-            if tags:
-                tags_conditions = [f"{k}='{str(v)}'" for k, v in tags.items()]
-                tags_condition = ' AND '.join(tags_conditions) + ' AND '
-            
-            # Формирование списка полей
-            fields_select = '*' if not fields else '"'+'", "'.join(fields)+'"'
-            print('_read_single_batch'+'_'*50)
-            if start_time is None:
-                if len(tags_condition) == 0:
-                    query = f"SELECT {fields_select} FROM {measurement}"
-                else:
-                    query = f"SELECT {fields_select} FROM {measurement} WHERE {tags_condition}"
-            #
-            else:
-                query = f"SELECT {fields_select} FROM {measurement} WHERE {tags_condition}time >= '{start_time}' AND time <= '{end_time}'"
-                if time_zone:
-                    query += f" tz('{time_zone}')"
-                    
-            print(f"БД:{db_name}. Выполняем запрос: {query}")
-            result = self.client.query(query)
-            
-            if measurement in result:
-                df = result[measurement]
-                if time_zone and not df.empty:
-                    df = df.tz_convert(time_zone)
-                #df=df.set_index('time')
-                return df
-            else:
-                print('Результат запроса - пустая таблица')
-                return pd.DataFrame()
-                
-        except Exception as e:
-            print(f"Ошибка при чтении батча: {e}")
-            return pd.DataFrame()
-        finally:
-            self.disconnect()       
-            
-            
-    def read_data_last_point(self, measurement: str, 
+    def read_data(self, measurement: str, 
                  start_time: Optional[str] = None,
                  end_time: Optional[str] = None,
                  fields: Optional[List[str]] = None,
                  tags: Optional[Dict[str, str]] = None,
                  database: Optional[str] = None,
+                 filter_: Optional[str] = None,
                  time_zone: str = 'Etc/GMT-3') -> pd.DataFrame:
         """
         Чтение данных из InfluxDB с фильтрацией
@@ -570,27 +350,32 @@ class EnhancedInfluxDBManager(InfluxDBManager):
                 tags_condition = ' AND '.join(tags_conditions) + ' AND '
             
             # Формирование списка полей
-            fields_select = '*' if not fields else '"'+'", "'.join(fields)+'"'
+            fields_select = '*' if not fields else ', '.join(fields)
             
             if start_time is None:
                 query = f"""
-                    SELECT {fields_select} FROM {measurement}  
-                    WHERE {tags_condition} ORDER BY time DESC  LIMIT 1
+                    SELECT {fields_select} FROM {measurement}                     
                 """            
             else:
                 query = f"""
                     SELECT {fields_select} FROM {measurement} 
-                    WHERE {tags_condition}time >= '{start_time}' AND time <= '{end_time}' ORDER BY time DESC  LIMIT 1
+                    WHERE {tags_condition}time >= '{start_time}' AND time <= '{end_time}'
                 """
+                
+            if not(filter_ is None):
+                query = query +'AND "name" =~ /'+filter_+'/ '
             
             if time_zone:
                 query += f" tz('{time_zone}')"
             
-            print(f"БД:{db_name}. Выполняем запрос: {query}")
-            result = self.client.query(query)
-            
+
+            print(query)    
+            #print(f"БД:{db_name}. Выполняем запрос: {query}")
+            result = self.client.query(query,params={'epoch':'s'})
+            print('result')
             if measurement in result:
                 df = result[measurement]
+                df.index=df.index.astype('int64').astype('datetime64[s]').tz_localize('UTC')#.tz_convert('Etc/GMT-3')
                 if time_zone and not df.empty:
                     df = df.tz_convert(time_zone)
                 return df
@@ -604,7 +389,7 @@ class EnhancedInfluxDBManager(InfluxDBManager):
         finally:
             self.disconnect()
     
-    def read_last_point1(self, measurement: str,
+    def read_last_point(self, measurement: str,
                        tags: Optional[Dict[str, str]] = None,
                        database: Optional[str] = None) -> pd.DataFrame:
         """
