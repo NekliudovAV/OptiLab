@@ -317,7 +317,8 @@ class EnhancedInfluxDBManager(InfluxDBManager):
                  tags: Optional[Dict[str, str]] = None,
                  database: Optional[str] = None,
                  filter_: Optional[str] = None,
-                 time_zone: str = 'Etc/GMT-3') -> pd.DataFrame:
+                 time_zone: str = 'Etc/GMT-3',
+                 korrect_key:bool =False) -> pd.DataFrame:
         """
         Чтение данных из InfluxDB с фильтрацией
         
@@ -371,11 +372,15 @@ class EnhancedInfluxDBManager(InfluxDBManager):
 
             print(query)    
             #print(f"БД:{db_name}. Выполняем запрос: {query}")
-            result = self.client.query(query,params={'epoch':'s'})
+            if korrect_key:
+                result = self.client.query(query,params={'epoch':'s'})
+            else:    
+                result = self.client.query(query)
             print('result')
             if measurement in result:
                 df = result[measurement]
-                df.index=df.index.astype('int64').astype('datetime64[s]').tz_localize('UTC')#.tz_convert('Etc/GMT-3')
+                if korrect_key:
+                    df.index=df.index.astype('int64').astype('datetime64[s]').tz_localize('UTC')#.tz_convert('Etc/GMT-3')
                 if time_zone and not df.empty:
                     df = df.tz_convert(time_zone)
                 return df
